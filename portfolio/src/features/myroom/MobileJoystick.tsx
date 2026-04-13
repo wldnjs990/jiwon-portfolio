@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useSceneStore } from '@/shared/store'
 import { useControlStore } from '@/shared/store'
-import { useMyroomStore } from './myroomStore'
 
 const MAX_RADIUS = 50 // px
 const THUMB_SIZE = 40 // px
@@ -18,19 +17,13 @@ interface JoystickState {
 export default function MobileJoystick() {
   const currentScene = useSceneStore((s) => s.currentScene)
   const setJoystickInput = useControlStore((s) => s.setJoystickInput)
-  const isNearWardrobe = useMyroomStore((s) => s.isNearWardrobe)
-  const setModalOpen = useMyroomStore((s) => s.setModalOpen)
   const [joystick, setJoystick] = useState<JoystickState | null>(null)
 
   // 최신 값을 클로저 없이 읽기 위한 ref
   const activeIdRef = useRef<number | null>(null)
-  const isNearRef = useRef(false)
   const setJoystickInputRef = useRef(setJoystickInput)
-  const setModalOpenRef = useRef(setModalOpen)
 
-  useEffect(() => { isNearRef.current = isNearWardrobe }, [isNearWardrobe])
   useEffect(() => { setJoystickInputRef.current = setJoystickInput }, [setJoystickInput])
-  useEffect(() => { setModalOpenRef.current = setModalOpen }, [setModalOpen])
 
   useEffect(() => {
     if (currentScene !== 'myroom') return
@@ -38,12 +31,6 @@ export default function MobileJoystick() {
     const onTouchStart = (e: TouchEvent) => {
       if (activeIdRef.current !== null) return
       const touch = e.changedTouches[0]
-
-      // 옷장 근처에서 탭 → 조이스틱 대신 상호작용
-      if (isNearRef.current) {
-        setModalOpenRef.current(true)
-        return
-      }
 
       activeIdRef.current = touch.identifier
       setJoystick({
