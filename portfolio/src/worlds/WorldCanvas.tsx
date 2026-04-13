@@ -2,7 +2,8 @@
 
 import { Canvas } from '@react-three/fiber'
 import { Suspense } from 'react'
-import { LandingScene } from './landing'
+import { Physics } from '@react-three/rapier'
+import SceneManager from './_infra/SceneManager'
 
 export default function WorldCanvas() {
   return (
@@ -12,9 +13,11 @@ export default function WorldCanvas() {
       style={{ width: '100vw', height: '100vh' }}
       gl={{ antialias: true }}
     >
-      <Suspense fallback={null}>
-        <LandingScene />
-      </Suspense>
+      <Physics gravity={[0, -9.81, 0]}>
+        <Suspense fallback={null}>
+          <SceneManager />
+        </Suspense>
+      </Physics>
     </Canvas>
   )
 }

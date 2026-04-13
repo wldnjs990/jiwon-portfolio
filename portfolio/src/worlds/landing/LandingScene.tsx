@@ -1,11 +1,19 @@
 import { OrbitControls, ContactShadows, Environment } from '@react-three/drei'
 import PrinterMesh from './objects/PrinterMesh'
+import { useLandingStore } from '@/features/landing/landingStore'
+import { useSceneStore } from '@/shared/store'
+import { useLandingCamera } from './useLandingCamera'
 
 export default function LandingScene() {
+  const isExploreMode = useLandingStore((s) => s.isExploreMode)
+  const isTransitioning = useSceneStore((s) => s.isTransitioning)
+  const { startTransition } = useLandingCamera()
+
   return (
     <>
-      {/* 카메라 — 프린터 중심을 바라보며 360도 회전 가능 */}
+      {/* 카메라 — 체험 모드에서만 360도 회전 가능 */}
       <OrbitControls
+        enabled={isExploreMode && !isTransitioning}
         target={[0, 0.35, 0]}
         enablePan={false}
         enableZoom={true}
@@ -39,8 +47,10 @@ export default function LandingScene() {
         far={2}
       />
 
-      {/* 네모닉 프린터 메시 */}
-      <PrinterMesh />
+      {/* 네모닉 프린터 메시 — 기본 모드에서 클릭 시 씬 전환 시작 */}
+      <group onClick={!isExploreMode && !isTransitioning ? startTransition : undefined}>
+        <PrinterMesh />
+      </group>
     </>
   )
 }
