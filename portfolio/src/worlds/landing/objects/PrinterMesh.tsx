@@ -4,14 +4,19 @@ import { usePrinterInteraction } from '../usePrinterInteraction'
 
 const BUTTON_SIZE = 0.13
 
-export default function PrinterMesh() {
-  const { paperRef, isPrinting, handleButtonPress, HIDDEN_Y } = usePrinterInteraction()
-  const [buttonHovered, setButtonHovered] = useState(false)
+// 본체 치수
+const BW = 1.1
+const BH = 0.7
+const BD = 1.1
+const WT = 0.025  // 벽 두께
 
-  // 직각삼각형 Shape — XY 평면 정의 후 mesh에서 -π/2 회전으로 XZ 평면(수평)에 눕힘
-  // (0,0): 직각 꼭짓점 = 그룹 원점 (프린터 모서리)
-  // (-SIZE, 0): -X 방향 (프린터 중앙쪽)
-  // (0, SIZE): +Y → 회전 후 -Z 방향 (프린터 중앙쪽)
+export default function PrinterMesh() {
+  const { paperRef, lidGroupRef, isPrinting, lidOpen, handleButtonPress, handleLidToggle, HIDDEN_Y, toggleButtonRef } =
+    usePrinterInteraction()
+  const [buttonHovered, setButtonHovered] = useState(false)
+  const [lidBtnHovered, setLidBtnHovered] = useState(false)
+
+  // 직각삼각형 버튼 Shape (상판 우측 전면 모서리)
   const buttonShape = useMemo(() => {
     const shape = new Shape()
     shape.moveTo(0, 0)
@@ -21,70 +26,158 @@ export default function PrinterMesh() {
     return shape
   }, [])
 
+  // 타원형 토글 버튼 Shape (rounded rectangle)
+  const ovalShape = useMemo(() => {
+    const w = 0.058, h = 0.1, r = 0.05
+    const s = new Shape()
+    s.moveTo(-w + r, -h)
+    s.lineTo(w - r, -h)
+    s.quadraticCurveTo(w, -h, w, -h + r)
+    s.lineTo(w, h - r)
+    s.quadraticCurveTo(w, h, w - r, h)
+    s.lineTo(-w + r, h)
+    s.quadraticCurveTo(-w, h, -w, h - r)
+    s.lineTo(-w, -h + r)
+    s.quadraticCurveTo(-w, -h, -w + r, -h)
+    s.closePath()
+    return s
+  }, [])
+
   return (
-    <group position={[0, 0, 0]}>
-      {/* 본체 */}
-      <mesh position={[0, 0.35, 0]} castShadow receiveShadow>
-        <boxGeometry args={[1.1, 0.7, 1.1]} />
+    <group>
+      {/* 본체 — 오픈탑 5면 박스 */}
+      {/* 전면: 중심을 WT/2 안쪽으로 — 외부면 Z=BD/2, 측면 벽과 코너가 맞닿음 */}
+      <mesh position={[0, BH / 2, BD / 2 - WT / 2]} castShadow receiveShadow>
+        <boxGeometry args={[BW, BH, WT]} />
+        <meshStandardMaterial color="#f5f5f5" roughness={0.3} metalness={0.05} />
+      </mesh>
+      {/* 후면 */}
+      <mesh position={[0, BH / 2, -BD / 2 + WT / 2]} castShadow receiveShadow>
+        <boxGeometry args={[BW, BH, WT]} />
+        <meshStandardMaterial color="#f5f5f5" roughness={0.3} metalness={0.05} />
+      </mesh>
+      {/* 좌면: 전/후 벽 두께 사이를 채움 (BD - WT*2) */}
+      <mesh position={[-BW / 2 + WT / 2, BH / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[WT, BH, BD - WT * 2]} />
+        <meshStandardMaterial color="#f5f5f5" roughness={0.3} metalness={0.05} />
+      </mesh>
+      {/* 우면 */}
+      <mesh position={[BW / 2 - WT / 2, BH / 2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[WT, BH, BD - WT * 2]} />
+        <meshStandardMaterial color="#f5f5f5" roughness={0.3} metalness={0.05} />
+      </mesh>
+      {/* 바닥면 */}
+      <mesh position={[0, WT / 2, 0]} receiveShadow>
+        <boxGeometry args={[BW, WT, BD]} />
         <meshStandardMaterial color="#f5f5f5" roughness={0.3} metalness={0.05} />
       </mesh>
 
-      {/* 상판 — 약간 다른 흰색 */}
-      <mesh position={[0, 0.705, 0]} receiveShadow>
-        <boxGeometry args={[1.1, 0.01, 1.1]} />
-        <meshStandardMaterial color="#ececec" roughness={0.4} />
+      {/* 내부 구조 — 뚜껑 열릴 때 위에서 보임 */}
+      {/* 프린트 헤드 바 */}
+      <mesh position={[0, BH - 0.02, 0.05]}>
+        <boxGeometry args={[BW - WT * 2 - 0.04, 0.03, 0.09]} />
+        <meshStandardMaterial color="#1a1a1a" roughness={0.4} metalness={0.3} />
+      </mesh>
+      {/* 롤러 */}
+      <mesh position={[0, BH - 0.05, 0.05]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.012, 0.012, BW - WT * 2 - 0.06, 16]} />
+        <meshStandardMaterial color="#333333" roughness={0.3} metalness={0.4} />
+      </mesh>
+      {/* 라벨 롤 */}
+      <mesh position={[0, BH * 0.52, -0.05]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.13, 0.13, BW - WT * 2 - 0.06, 32]} />
+        <meshStandardMaterial color="#f0f0f0" roughness={0.5} />
       </mesh>
 
-      {/* 슬릿 + 라벨지 그룹 — X=0, Z=0.1 공통 관리 */}
-      <group position={[0, 0, 0.3]}>
-        {/* 상판 프린트 슬릿 (출구) */}
-        <mesh position={[0, 0.716, 0]}>
-          <boxGeometry args={[0.84, 0, 0.06]} />
-          <meshStandardMaterial color="#333333" roughness={0.8} />
-        </mesh>
+      {/* 뚜껑 pivot — 힌지: 본체 뒷면 상단 모서리 */}
+      <group position={[0, BH, -BD / 2]}>
+        <group ref={lidGroupRef}>
+          {/* 뚜껑 중심을 원점으로 복귀 */}
+          <group position={[0, 0, BD / 2]}>
+            {/* 상판 */}
+            <mesh position={[0, 0.005, 0]} receiveShadow>
+              <boxGeometry args={[BW, 0.01, BD]} />
+              <meshStandardMaterial color="gray" roughness={0.4} />
+            </mesh>
 
-        {/* 라벨지 — 세로 정사각형, 슬릿에서 위로 올라오는 애니메이션
-            초기 위치: 프린터 내부에 완전히 숨겨진 상태 */}
-        <mesh ref={paperRef} position={[0, HIDDEN_Y, 0]}>
-          <boxGeometry args={[0.80, 0.38, 0.003]} />
-          <meshStandardMaterial color="#fff8f6" roughness={0.85} />
-        </mesh>
+            {/* 슬릿 + 라벨지 그룹 — Z=0.3 공통 관리 */}
+            <group position={[0, 0, 0.3]}>
+              {/* 상판 프린트 슬릿 (출구) */}
+              <mesh position={[0, 0.016, 0]}>
+                <boxGeometry args={[0.84, 0.006, 0.06]} />
+                <meshStandardMaterial color="#333333" roughness={0.8} />
+              </mesh>
+
+              {/* 라벨지 */}
+              <mesh ref={paperRef} position={[0, HIDDEN_Y, 0]}>
+                <boxGeometry args={[0.80, 0.38, 0.003]} />
+                <meshStandardMaterial color="#fff8f6" roughness={0.85} />
+              </mesh>
+            </group>
+
+            {/* 삼각형 버튼 그룹 — 상판 우측 전면 모서리 */}
+            <group
+              position={[BW / 2, 0.003, BD / 2]}
+              onClick={handleButtonPress}
+              onPointerEnter={() => {
+                document.body.style.cursor = 'pointer'
+                setButtonHovered(true)
+              }}
+              onPointerLeave={() => {
+                document.body.style.cursor = 'auto'
+                setButtonHovered(false)
+              }}
+            >
+              <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
+                <extrudeGeometry args={[buttonShape, { depth: 0.008, bevelEnabled: false }]} />
+                <meshStandardMaterial
+                  color={buttonHovered ? '#cccccc' : '#dddddd'}
+                  roughness={0.3}
+                  metalness={0.1}
+                />
+              </mesh>
+              <mesh position={[-BUTTON_SIZE / 3, 0.015, -BUTTON_SIZE / 3]}>
+                <coneGeometry args={[0.018, 0.014, 3]} />
+                <meshStandardMaterial color={isPrinting ? '#888888' : '#aaaaaa'} roughness={0.5} />
+              </mesh>
+            </group>
+          </group>
+        </group>
       </group>
 
-      {/* 버튼 그룹 — 공통 position을 그룹에서 관리, 자식은 그룹 원점 기준 상대 좌표 */}
+      {/* 토글 버튼 — 전면 중앙 */}
       <group
-        position={[0.55, 0.703, 0.55]}
-        onClick={handleButtonPress}
+        position={[-BW / 2 + WT / 2 - 0.01, BH / 2, 0]}
+        rotation={[0, -1.56, 0]}
+        onClick={handleLidToggle}
         onPointerEnter={() => {
           document.body.style.cursor = 'pointer'
-          setButtonHovered(true)
+          setLidBtnHovered(true)
         }}
         onPointerLeave={() => {
           document.body.style.cursor = 'auto'
-          setButtonHovered(false)
+          setLidBtnHovered(false)
         }}
       >
-        {/* 직각삼각형 버튼 — ExtrudeGeometry로 두께 부여
-            로컬 Z축(depth 방향)이 rotation 후 월드 +Y가 되므로 위쪽으로 솟아오름 */}
-        <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.006, 0]}>
-          <extrudeGeometry args={[buttonShape, { depth: 0.008, bevelEnabled: false }]} />
+        {/* 타원형 하우징 */}
+        <mesh>
+          <extrudeGeometry args={[ovalShape, { depth: 0.005, bevelEnabled: false }]} />
           <meshStandardMaterial
-            color={buttonHovered ? '#cccccc' : '#dddddd'}
+            color={lidBtnHovered ? '#d8d8d8' : '#dddddd'}
             roughness={0.3}
-            metalness={0.1}
+            metalness={0.05}
           />
         </mesh>
-
-        {/* 삼각형 인디케이터 — 직각삼각형 무게중심(-SIZE/3, 0, -SIZE/3)에 위치 */}
-        <mesh position={[-BUTTON_SIZE / 3, 0.015, -BUTTON_SIZE / 3]}>
-          <coneGeometry args={[0.018, 0.014, 3]} />
-          <meshStandardMaterial color={isPrinting ? '#888888' : '#aaaaaa'} roughness={0.5} />
+        {/* 내부 원형 인디케이터 */}
+        <mesh ref={toggleButtonRef} position={[0, 0.04, 0.008]} rotation={[Math.PI / 2, 0, 0]}>
+          <cylinderGeometry args={[0.05, 0.05, 0.004, 32]} />
+          <meshStandardMaterial color={lidOpen ? '#aaaaaa' : '#cccccc'} roughness={0.4} />
         </mesh>
       </group>
 
       {/* 하단 받침 */}
       <mesh position={[0, 0.015, 0]} receiveShadow>
-        <boxGeometry args={[1.14, 0.03, 1.14]} />
+        <boxGeometry args={[1, 0.03, 1]} />
         <meshStandardMaterial color="#e8e8e8" roughness={0.5} />
       </mesh>
     </group>
