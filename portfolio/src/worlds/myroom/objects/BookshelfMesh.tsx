@@ -1,67 +1,40 @@
-import { RigidBody } from '@react-three/rapier'
-import { useState } from 'react'
+import { RigidBody, CuboidCollider } from '@react-three/rapier'
 
 interface BookshelfMeshProps {
-  onClick: () => void
+  onWardrobeClick: () => void
 }
 
-export default function BookshelfMesh({ onClick }: BookshelfMeshProps) {
-  const [hovered, setHovered] = useState(false)
-
+export default function BookshelfMesh({ onWardrobeClick }: BookshelfMeshProps) {
   return (
-    <group
-      position={[-4.5, 0, -4.5]}
-      onClick={onClick}
-      onPointerEnter={() => { document.body.style.cursor = 'pointer'; setHovered(true) }}
-      onPointerLeave={() => { document.body.style.cursor = 'auto'; setHovered(false) }}
-    >
-      <RigidBody type="fixed" colliders="cuboid">
-        {/* 책장 본체 */}
-        <mesh position={[0, 1.1, 0]} castShadow receiveShadow>
-          <boxGeometry args={[1.6, 2.2, 0.45]} />
-          <meshStandardMaterial
-            color={hovered ? '#a07820' : '#8b6914'}
-            roughness={0.6}
-          />
+    <group position={[2.8, 0, -5.5]}>
+      <RigidBody type="fixed" colliders={false}>
+        {/* 본체 — 클릭 가능 */}
+        <mesh position={[0, 1.2, 0]} castShadow receiveShadow onClick={onWardrobeClick}>
+          <boxGeometry args={[1.8, 2.4, 0.5]} />
+          <meshStandardMaterial color="#5a4030" roughness={0.6} />
         </mesh>
-        {/* 선반 1 */}
-        <mesh position={[0, 0.5, 0]} castShadow>
-          <boxGeometry args={[1.5, 0.06, 0.4]} />
-          <meshStandardMaterial color="#7a5c10" roughness={0.5} />
+        {/* 문 패널 좌 */}
+        <mesh position={[-0.45, 1.2, 0.26]} castShadow onClick={onWardrobeClick}>
+          <boxGeometry args={[0.82, 2.2, 0.04]} />
+          <meshStandardMaterial color="#7a5c40" roughness={0.5} />
         </mesh>
-        {/* 선반 2 */}
-        <mesh position={[0, 1.2, 0]} castShadow>
-          <boxGeometry args={[1.5, 0.06, 0.4]} />
-          <meshStandardMaterial color="#7a5c10" roughness={0.5} />
+        {/* 문 패널 우 */}
+        <mesh position={[0.45, 1.2, 0.26]} castShadow onClick={onWardrobeClick}>
+          <boxGeometry args={[0.82, 2.2, 0.04]} />
+          <meshStandardMaterial color="#7a5c40" roughness={0.5} />
         </mesh>
-        {/* 선반 3 */}
-        <mesh position={[0, 1.9, 0]} castShadow>
-          <boxGeometry args={[1.5, 0.06, 0.4]} />
-          <meshStandardMaterial color="#7a5c10" roughness={0.5} />
+        {/* 손잡이 좌 */}
+        <mesh position={[-0.05, 1.2, 0.31]} castShadow>
+          <cylinderGeometry args={[0.03, 0.03, 0.18, 8]} />
+          <meshStandardMaterial color="#c8a850" metalness={0.7} roughness={0.3} />
         </mesh>
+        {/* 손잡이 우 */}
+        <mesh position={[0.05, 1.2, 0.31]} castShadow>
+          <cylinderGeometry args={[0.03, 0.03, 0.18, 8]} />
+          <meshStandardMaterial color="#c8a850" metalness={0.7} roughness={0.3} />
+        </mesh>
+        <CuboidCollider args={[0.9, 1.2, 0.25]} position={[0, 1.2, 0]} />
       </RigidBody>
-
-      {/* 책들 (장식) */}
-      <mesh position={[-0.45, 0.85, 0]} castShadow>
-        <boxGeometry args={[0.12, 0.28, 0.3]} />
-        <meshStandardMaterial color="#e25c5c" roughness={0.7} />
-      </mesh>
-      <mesh position={[-0.3, 0.82, 0]} castShadow>
-        <boxGeometry args={[0.1, 0.22, 0.28]} />
-        <meshStandardMaterial color="#5c8fe2" roughness={0.7} />
-      </mesh>
-      <mesh position={[-0.18, 0.84, 0]} castShadow>
-        <boxGeometry args={[0.14, 0.26, 0.3]} />
-        <meshStandardMaterial color="#5ce29e" roughness={0.7} />
-      </mesh>
-
-      {/* 호버 글로우 효과 */}
-      {hovered && (
-        <mesh position={[0, 1.1, 0.23]}>
-          <planeGeometry args={[1.6, 2.2]} />
-          <meshStandardMaterial color="#ffffff" transparent opacity={0.08} />
-        </mesh>
-      )}
     </group>
   )
 }

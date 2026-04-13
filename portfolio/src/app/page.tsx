@@ -1,6 +1,6 @@
 import WorldLoader from '@/worlds/WorldLoader'
 import { WelcomeOverlay, ExploreToggle, TransitionOverlay } from '@/features/landing'
-import { BookshelfModal, BackToLandingButton } from '@/features/myroom'
+import { BookshelfModal, BackToLandingButton, InteractionHUD, MobileJoystick } from '@/features/myroom'
 
 export default function Page() {
   return (
@@ -11,6 +11,8 @@ export default function Page() {
       <TransitionOverlay />
       <BookshelfModal />
       <BackToLandingButton />
+      <InteractionHUD />
+      <MobileJoystick />
     </div>
   )
 }
