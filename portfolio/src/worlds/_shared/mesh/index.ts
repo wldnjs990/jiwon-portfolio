@@ -1,2 +1,1 @@
 // 씬 안에 여러 개 배치 가능한 재사용 메시를 이곳에서 export합니다.
-export { default as BoundaryWallsMesh } from './BoundaryWallsMesh'

@@ -1,21 +1,19 @@
 'use client'
 
 import { Canvas } from '@react-three/fiber'
-import { Physics } from '@react-three/rapier'
 import { Suspense } from 'react'
-import { OutsideScene } from './outside'
+import { LandingScene } from './landing'
 
 export default function WorldCanvas() {
   return (
     <Canvas
       shadows
-      camera={{ position: [0, 6, 10], fov: 60 }}
+      camera={{ position: [2.5, 2, 3.5], fov: 50 }}
       style={{ width: '100vw', height: '100vh' }}
+      gl={{ antialias: true }}
     >
       <Suspense fallback={null}>
-        <Physics gravity={[0, -9.81, 0]}>
-          <OutsideScene />
-        </Physics>
+        <LandingScene />
       </Suspense>
     </Canvas>
   )
