@@ -2,12 +2,15 @@ import { useEffect, useRef } from 'react'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import { RigidBody, CapsuleCollider } from '@react-three/rapier'
+import { LoopOnce } from 'three'
+import type { AnimationAction } from 'three'
 import type { RapierRigidBody } from '@react-three/rapier'
 import type { Group } from 'three'
 import { useCharacterMovement } from './useCharacterMovement'
 
 const ANIM_IDLE = 'idle'
 const ANIM_WALK = 'walk'
+const ANIM_DANCE = 'dance'
 const FADE_DURATION = 0.2
 
 interface CharacterProps {
@@ -18,7 +21,8 @@ export default function Character({ initialPosition = [0, 0.5, 0] }: CharacterPr
   const { scene, animations } = useGLTF('/nong_dam_gom.glb')
   const rb = useRef<RapierRigidBody>(null)
   const modelRef = useRef<Group>(null)
-  const { actions } = useAnimations(animations, modelRef)
+  const { actions, mixer } = useAnimations(animations, modelRef)
+  const isDancingRef = useRef(false)
 
   const { isMovingRef } = useCharacterMovement(rb, modelRef)
 
@@ -27,10 +31,54 @@ export default function Character({ initialPosition = [0, 0.5, 0] }: CharacterPr
     actions[ANIM_IDLE]?.play()
   }, [actions])
 
+  // dance 애니메이션: LoopOnce 설정 + 완료 시 idle 복귀
+  useEffect(() => {
+    const danceAction = actions[ANIM_DANCE]
+    if (!danceAction) return
+
+    danceAction.setLoop(LoopOnce, 1)
+    danceAction.clampWhenFinished = true
+
+    const handleFinished = (e: { action: AnimationAction }) => {
+      if (e.action !== danceAction) return
+      isDancingRef.current = false
+      actions[ANIM_IDLE]?.reset().fadeIn(FADE_DURATION).play()
+    }
+
+    mixer.addEventListener('finished', handleFinished as (e: object) => void)
+    return () => mixer.removeEventListener('finished', handleFinished as (e: object) => void)
+  }, [actions, mixer])
+
+  // Ctrl+4 → dance 시작
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey && e.key === '4')) return
+      e.preventDefault()
+      if (isDancingRef.current || isMovingRef.current) return
+      isDancingRef.current = true
+      actions[ANIM_IDLE]?.fadeOut(FADE_DURATION)
+      actions[ANIM_DANCE]?.reset().fadeIn(FADE_DURATION).play()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [actions, isMovingRef])
+
   // 이동 상태 변화 감지 → fadeIn/fadeOut 전환
   const prevMovingRef = useRef(false)
   useFrame(() => {
     const moving = isMovingRef.current ?? false
+
+    // 댄스 중 이동 시작 → 댄스 취소
+    if (isDancingRef.current && moving) {
+      isDancingRef.current = false
+      actions[ANIM_DANCE]?.fadeOut(FADE_DURATION)
+      actions[ANIM_WALK]?.reset().fadeIn(FADE_DURATION).play()
+      prevMovingRef.current = true
+      return
+    }
+
+    if (isDancingRef.current) return
+
     if (moving === prevMovingRef.current) return
     prevMovingRef.current = moving
 
