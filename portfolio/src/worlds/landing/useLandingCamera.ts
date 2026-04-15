@@ -1,33 +1,55 @@
-import { useRef } from 'react'
+import { useEffect, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Vector3 } from 'three'
 import { useLandingStore } from '@/features/landing/landingStore'
 import { useSceneStore } from '@/shared/store'
 
-// Phase 1: 카메라가 뚜껑 위쪽으로 이동
-const PHASE1_POS = new Vector3(0, 2.2, 1.2)
-const PHASE1_LOOKAT = new Vector3(0, 0.7, 0)
+// top-down 45° — 프린터 위에서 내려다보는 시점
+const AIM_POS = new Vector3(0, 2.0, 2.0)
+const AIM_LOOKAT = new Vector3(0, 0.35, 0)
 
-// Phase 2: 슬릿(프린트 출구)으로 빨려들어가는 최종 위치
-const PHASE2_POS = new Vector3(0, 0.72, 0.3)
+// 프린터 정면 고정
+const FRONT_POS = new Vector3(0, 0.7, 2.5)
+const FRONT_LOOKAT = new Vector3(0, 0.5, 0)
+
+// 슬릿으로 빨려들어가는 최종 위치
+const SUCK_TARGET = new Vector3(0, 0.5, 0.6)
 
 function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t
 }
 
+type CamPhase = 'idle' | 'aim' | 'front' | 'suck'
+
 export function useLandingCamera() {
-  const isExploreMode = useLandingStore((s) => s.isExploreMode)
   const setScene = useSceneStore((s) => s.setScene)
   const setTransitioning = useSceneStore((s) => s.setTransitioning)
+  const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep)
+  const onboardingStep = useLandingStore((s) => s.onboardingStep)
 
-  const phase = useRef<'idle' | 'phase1' | 'phase2'>('idle')
+  const phase = useRef<CamPhase>('idle')
   const progress = useRef(0)
-  const phase1StartPos = useRef(new Vector3())
+  const startPos = useRef(new Vector3())
 
-  const startTransition = () => {
-    if (isExploreMode || phase.current !== 'idle') return
-    setTransitioning(true)
-    phase.current = 'phase1'
+  // camera-aim 단계가 되면 aim 페이즈 시작
+  useEffect(() => {
+    if (onboardingStep === 'camera-aim') {
+      phase.current = 'aim'
+      progress.current = 0
+    }
+  }, [onboardingStep])
+
+  const frontReadyCallback = useRef<(() => void) | null>(null)
+
+  // onReady: front 이동 완료 시 호출. 없으면 즉시 suck 시작
+  const startFront = (onReady?: () => void) => {
+    phase.current = 'front'
+    progress.current = 0
+    frontReadyCallback.current = onReady ?? null
+  }
+
+  const startSuck = () => {
+    phase.current = 'suck'
     progress.current = 0
   }
 
@@ -36,37 +58,63 @@ export function useLandingCamera() {
 
     const { camera } = state
 
-    if (phase.current === 'phase1') {
+    // aim: top-down 45° 이동 → 완료 시 print-ready
+    if (phase.current === 'aim') {
       if (progress.current === 0) {
-        phase1StartPos.current.copy(camera.position)
+        startPos.current.copy(camera.position)
       }
       progress.current += delta * 0.9
       const t = easeInOut(Math.min(progress.current, 1))
-
-      camera.position.lerpVectors(phase1StartPos.current, PHASE1_POS, t)
-      camera.lookAt(PHASE1_LOOKAT)
+      camera.position.lerpVectors(startPos.current, AIM_POS, t)
+      camera.lookAt(AIM_LOOKAT)
 
       if (progress.current >= 1) {
-        phase.current = 'phase2'
-        progress.current = 0
+        phase.current = 'idle'
+        setOnboardingStep('print-ready')
       }
     }
 
-    if (phase.current === 'phase2') {
-      progress.current += delta
-      // 가속도 증가: 처음엔 느리다가 빠르게 빨려드는 효과
-      const speed = 0.04 + progress.current * progress.current * 0.5
-      camera.position.lerp(PHASE2_POS, Math.min(speed, 0.9))
-      camera.lookAt(PHASE1_LOOKAT)
+    // front: 프린터 정면 이동 → 완료 시 suck
+    if (phase.current === 'front') {
+      if (progress.current === 0) {
+        startPos.current.copy(camera.position)
+      }
+      progress.current += delta * 0.8
+      const t = easeInOut(Math.min(progress.current, 1))
+      camera.position.lerpVectors(startPos.current, FRONT_POS, t)
+      camera.lookAt(FRONT_LOOKAT)
 
-      const dist = camera.position.distanceTo(PHASE2_POS)
-      if (dist < 0.12) {
+      if (progress.current >= 1) {
+        if (frontReadyCallback.current) {
+          frontReadyCallback.current()
+          frontReadyCallback.current = null
+          phase.current = 'idle'  // startSuck 호출 대기
+        } else {
+          phase.current = 'suck'
+          progress.current = 0
+        }
+      }
+    }
+
+    // suck: 가속 lerp로 슬릿 안으로 빨려들기 → entering
+    if (phase.current === 'suck') {
+      progress.current += delta
+      const speed = 0.04 + progress.current * progress.current * 0.5
+      camera.position.lerp(SUCK_TARGET, Math.min(speed, 0.9))
+      camera.lookAt(FRONT_LOOKAT)
+
+      if (camera.position.distanceTo(SUCK_TARGET) < 0.12) {
         phase.current = 'idle'
-        setScene('myroom')
-        setTransitioning(false)
+        setTransitioning(true)
+        setOnboardingStep('entering')
+        setTimeout(() => {
+          setScene('myroom')
+          setTransitioning(false)
+          setOnboardingStep('idle')
+        }, 2500)
       }
     }
   })
 
-  return { startTransition }
+  return { startFront, startSuck }
 }

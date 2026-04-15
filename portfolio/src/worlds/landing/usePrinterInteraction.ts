@@ -6,29 +6,39 @@ import type { Group, Mesh } from 'three'
 const SLOT_Y = 0.016
 const PAPER_HALF_H = 0.19
 
-const HIDDEN_Y = SLOT_Y - PAPER_HALF_H - 0.01    // ≈ -0.184 (슬릿 아래 완전 숨겨짐)
-const EXTENDED_Y = SLOT_Y + PAPER_HALF_H * 0.65  // ≈ 0.140 (65% 올라온 상태)
+export const HIDDEN_Y = SLOT_Y - PAPER_HALF_H - 0.01      // ≈ -0.184
+export const EXTENDED_Y = SLOT_Y + PAPER_HALF_H * 0.65    // ≈ 0.140 (65% 노출)
 
-const LID_OPEN_ANGLE = -Math.PI * 0.72  // 약 130° 뒤로 열림
+const LID_OPEN_ANGLE = -Math.PI * 0.72
 
+/**
+ * 탐험(Explore) 모드 전용 프린터 인터랙션 훅.
+ * - 삼각형 버튼: 라벨지 65% 출력 후 자동 회수
+ * - 뚜껑 열기/닫기
+ * 온보딩 출력 로직은 useOnboardingPrinterInteraction에서 담당.
+ */
 export function usePrinterInteraction() {
   const [isPrinting, setIsPrinting] = useState(false)
   const [lidOpen, setLidOpen] = useState(false)
+
   const paperRef = useRef<Mesh>(null)
   const lidGroupRef = useRef<Group>(null)
+  const toggleButtonRef = useRef<Mesh>(null)
+
   const targetY = useRef(HIDDEN_Y)
   const targetLidAngle = useRef(0)
   const retractTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const toggleButtonRef = useRef<Mesh>(null)
+
+  // 온보딩 훅이 targetY를 제어할 수 있도록 setter 노출
+  const setTargetY = (y: number) => {
+    targetY.current = y
+  }
 
   const handleButtonPress = () => {
     if (isPrinting || lidOpen) return
     setIsPrinting(true)
-
     if (retractTimer.current) clearTimeout(retractTimer.current)
-
     targetY.current = EXTENDED_Y
-
     retractTimer.current = setTimeout(() => {
       targetY.current = HIDDEN_Y
       setIsPrinting(false)
@@ -38,7 +48,6 @@ export function usePrinterInteraction() {
   const handleLidToggle = () => {
     const next = !lidOpen
     if (next) {
-      // 뚜껑 열 때: 라벨지 자동 회수
       targetY.current = HIDDEN_Y
       if (retractTimer.current) {
         clearTimeout(retractTimer.current)
@@ -65,14 +74,24 @@ export function usePrinterInteraction() {
       }
     }
 
-    if(toggleButtonRef.current) {
-      if(lidOpen && toggleButtonRef.current.position.y > -0.04) {
+    if (toggleButtonRef.current) {
+      if (lidOpen && toggleButtonRef.current.position.y > -0.04) {
         toggleButtonRef.current.position.y -= 0.01
-      } else if(!lidOpen && toggleButtonRef.current.position.y < 0.04) {
+      } else if (!lidOpen && toggleButtonRef.current.position.y < 0.04) {
         toggleButtonRef.current.position.y += 0.01
       }
     }
   })
 
-  return { paperRef, lidGroupRef, isPrinting, lidOpen, handleButtonPress, handleLidToggle, HIDDEN_Y, toggleButtonRef }
+  return {
+    paperRef,
+    lidGroupRef,
+    toggleButtonRef,
+    isPrinting,
+    lidOpen,
+    handleButtonPress,
+    handleLidToggle,
+    setTargetY,
+    HIDDEN_Y,
+  }
 }

@@ -2,9 +2,14 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { useWelcome } from './useWelcome'
+import { useLandingStore } from './landingStore'
 
 export default function WelcomeOverlay() {
   const { visible } = useWelcome()
+  const onboardingStep = useLandingStore((s) => s.onboardingStep)
+
+  // welcome 단계에서만 렌더
+  if (onboardingStep !== 'welcome') return null
 
   return (
     <AnimatePresence>

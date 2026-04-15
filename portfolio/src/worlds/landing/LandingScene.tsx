@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { OrbitControls, ContactShadows, Environment } from '@react-three/drei'
 import PrinterMesh from './objects/PrinterMesh'
+import DrawingDoorMesh from './objects/DrawingDoorMesh'
 import { useLandingStore } from '@/features/landing/landingStore'
 import { useSceneStore } from '@/shared/store'
 import { useLandingCamera } from './useLandingCamera'
@@ -7,11 +9,26 @@ import { useLandingCamera } from './useLandingCamera'
 export default function LandingScene() {
   const isExploreMode = useLandingStore((s) => s.isExploreMode)
   const isTransitioning = useSceneStore((s) => s.isTransitioning)
-  const { startTransition } = useLandingCamera()
+  const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep)
+
+  const { startFront, startSuck } = useLandingCamera()
+  const [attachDoor, setAttachDoor] = useState(false)
+
+  const handlePrint = () => {
+    setOnboardingStep('printing')
+  }
+
+  // 그림 클릭 → 카메라 정면 이동 → 완료 후 그림 벽 부착 → 700ms 후 suck
+  const handleDoorClick = () => {
+    startFront(() => {
+      setAttachDoor(true)
+      setTimeout(startSuck, 700)
+    })
+  }
 
   return (
     <>
-      {/* 카메라 — 체험 모드에서만 360도 회전 가능 */}
+      {/* 카메라 — 온보딩 완료 + 체험 모드에서만 360도 회전 가능 */}
       <OrbitControls
         enabled={isExploreMode && !isTransitioning}
         target={[0, 0.35, 0]}
@@ -47,10 +64,11 @@ export default function LandingScene() {
         far={2}
       />
 
-      {/* 네모닉 프린터 메시 — 기본 모드에서 클릭 시 씬 전환 시작 */}
-      <group onClick={!isExploreMode && !isTransitioning ? startTransition : undefined}>
-        <PrinterMesh />
-      </group>
+      {/* 네모닉 프린터 메시 */}
+      <PrinterMesh onPrint={handlePrint} />
+
+      {/* 드로잉 문 메시 — paper-modal 단계에서 카메라 앞에 떠오름 */}
+      <DrawingDoorMesh shouldAttach={attachDoor} onDoorClick={handleDoorClick} />
     </>
   )
 }

@@ -1,18 +1,22 @@
 'use client'
 
-import { useProgress } from '@react-three/drei'
 import { useEffect, useState } from 'react'
+import { useLandingStore } from './landingStore'
 
 export function useWelcome() {
-  const { progress } = useProgress()
   const [visible, setVisible] = useState(false)
+  const onboardingStep = useLandingStore((s) => s.onboardingStep)
+  const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep)
 
   useEffect(() => {
-    if (progress < 100) return
+    if (onboardingStep !== 'welcome') return
     setVisible(true)
-    const timer = setTimeout(() => setVisible(false), 2000)
+    const timer = setTimeout(() => {
+      setVisible(false)
+      setOnboardingStep('drawing')
+    }, 2000)
     return () => clearTimeout(timer)
-  }, [progress])
+  }, [onboardingStep, setOnboardingStep])
 
   return { visible }
 }

@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react'
+import { useFrame } from '@react-three/fiber'
 import { Shape } from 'three'
 import { usePrinterInteraction } from '../usePrinterInteraction'
+import { useOnboardingPrinterInteraction } from '../useOnboardingPrinterInteraction'
+import { useLandingStore } from '@/features/landing/landingStore'
 
 const BUTTON_SIZE = 0.13
 
@@ -10,11 +13,28 @@ const BH = 0.7
 const BD = 1.1
 const WT = 0.025  // 벽 두께
 
-export default function PrinterMesh() {
-  const { paperRef, lidGroupRef, isPrinting, lidOpen, handleButtonPress, handleLidToggle, HIDDEN_Y, toggleButtonRef } =
+interface PrinterMeshProps {
+  onPrint?: () => void
+}
+
+export default function PrinterMesh({ onPrint }: PrinterMeshProps) {
+  const { paperRef, lidGroupRef, isPrinting, lidOpen, handleButtonPress, handleLidToggle, setTargetY, HIDDEN_Y, toggleButtonRef } =
     usePrinterInteraction()
+
+  // 온보딩 전용 훅 — paperRef와 setTargetY를 공유해 같은 mesh를 제어
+  useOnboardingPrinterInteraction(paperRef, setTargetY)
+
   const [buttonHovered, setButtonHovered] = useState(false)
   const [lidBtnHovered, setLidBtnHovered] = useState(false)
+  const onboardingStep = useLandingStore((s) => s.onboardingStep)
+
+  // sparkle light intensity (state으로 리렌더 유발)
+  const [sparkleIntensity, setSparkleIntensity] = useState(0)
+  useFrame(({ clock }) => {
+    if (onboardingStep === 'print-ready') {
+      setSparkleIntensity(0.5 + Math.sin(clock.elapsedTime * 5) * 0.5)
+    }
+  })
 
   // 직각삼각형 버튼 Shape (상판 우측 전면 모서리)
   const buttonShape = useMemo(() => {
@@ -43,8 +63,25 @@ export default function PrinterMesh() {
     return s
   }, [])
 
+  const handleTriangleClick = () => {
+    if (onboardingStep === 'print-ready' && onPrint) {
+      onPrint()
+    } else {
+      handleButtonPress()
+    }
+  }
+
   return (
     <group>
+      {/* print-ready 단계 sparkle 포인트라이트 */}
+      {onboardingStep === 'print-ready' && (
+        <pointLight
+          position={[BW / 2, BH + 0.1, BD / 2]}
+          intensity={sparkleIntensity}
+          color="#ffd700"
+          distance={2}
+        />
+      )}
       {/* 본체 — 오픈탑 5면 박스 */}
       {/* 전면: 중심을 WT/2 안쪽으로 — 외부면 Z=BD/2, 측면 벽과 코너가 맞닿음 */}
       <mesh position={[0, BH / 2, BD / 2 - WT / 2]} castShadow receiveShadow>
@@ -118,7 +155,7 @@ export default function PrinterMesh() {
             {/* 삼각형 버튼 그룹 — 상판 우측 전면 모서리 */}
             <group
               position={[BW / 2, 0.003, BD / 2]}
-              onClick={handleButtonPress}
+              onClick={handleTriangleClick}
               onPointerEnter={() => {
                 document.body.style.cursor = 'pointer'
                 setButtonHovered(true)
