@@ -1,6 +1,18 @@
-import WorldLoader from '@/worlds/WorldLoader'
-import { WelcomeOverlay, DrawingOverlay, PrintReadyOverlay, PaperModalOverlay, ExploreToggle, TransitionOverlay } from '@/features/landing'
-import { BookshelfModal, BackToLandingButton, InteractionHUD, MobileJoystick } from '@/features/myroom'
+import WorldLoader from "@/worlds/WorldLoader";
+import {
+  WelcomeOverlay,
+  DrawingOverlay,
+  PrintReadyOverlay,
+  PaperModalOverlay,
+  ExploreToggle,
+  TransitionOverlay,
+} from "@/features/landing";
+import {
+  BookshelfModal,
+  BackToLandingButton,
+  InteractionHUD,
+  MobileJoystick,
+} from "@/features/myroom";
 
 export default function Page() {
   return (
@@ -17,5 +29,5 @@ export default function Page() {
       <InteractionHUD />
       <MobileJoystick />
     </div>
-  )
+  );
 }

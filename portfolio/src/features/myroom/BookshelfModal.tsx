@@ -1,7 +1,9 @@
 'use client'
 
 import { AnimatePresence, motion } from 'motion/react'
+import { X } from 'lucide-react'
 import { useMyroomStore } from './myroomStore'
+import TerritoryGame from './TerritoryGame'
 
 export default function BookshelfModal() {
   const { isModalOpen, setModalOpen } = useMyroomStore()
@@ -22,17 +24,26 @@ export default function BookshelfModal() {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 8 }}
             transition={{ duration: 0.2 }}
-            className="bg-white rounded-2xl p-8 max-w-sm w-full mx-4 shadow-2xl"
+            className="bg-white rounded-2xl p-5 max-w-md w-full mx-4 shadow-2xl relative"
             onClick={(e) => e.stopPropagation()}
           >
-            <h2 className="text-xl font-semibold mb-2">컨텐츠</h2>
-            <p className="text-gray-400 text-sm mb-6">게임이나 시나리오 같은 컨텐츠 집어넣으면 됨!.</p>
-            <button
-              className="w-full py-2 rounded-lg bg-gray-100 hover:bg-gray-200 transition-colors text-sm font-medium"
-              onClick={() => setModalOpen(false)}
-            >
-              닫기
-            </button>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-base font-semibold text-gray-800">🗺 땅따먹기</h2>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  타일 선택: 1/2/3키 &nbsp;|&nbsp; 공격: 상대 타일 클릭
+                </p>
+              </div>
+              <button
+                onClick={() => setModalOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <TerritoryGame />
           </motion.div>
         </motion.div>
       )}

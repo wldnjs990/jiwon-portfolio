@@ -1,28 +1,28 @@
-import { useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
-import { ContactShadows } from '@react-three/drei'
-import type { PerspectiveCamera } from 'three'
-import GroundMesh from './GroundMesh'
-import BookshelfMesh from './objects/BookshelfMesh'
-import Character from '../_infra/Character'
-import { useMyRoomInteraction } from './useMyRoomInteraction'
+import { useEffect } from "react";
+import { useThree } from "@react-three/fiber";
+import { ContactShadows } from "@react-three/drei";
+import type { PerspectiveCamera } from "three";
+import GroundMesh from "./GroundMesh";
+import BookshelfMesh from "./objects/BookshelfMesh";
+import Character from "../_infra/Character";
+import { useMyRoomInteraction } from "./useMyRoomInteraction";
 
 export default function MyRoomScene() {
-  const { camera } = useThree()
+  const { camera } = useThree();
 
   // 카메라는 씬 마운트 시 1회만 설정 — useEffect로 R3F 초기화 이후 실행 보장
   useEffect(() => {
-    camera.position.set(0, 7, 4)
-    camera.lookAt(0, 0, -3)
-    if ('fov' in camera) {
-      const aspect = window.innerWidth / window.innerHeight
+    camera.position.set(0, 7, 4);
+    camera.lookAt(0, 0, -3);
+    if ("fov" in camera) {
+      const aspect = window.innerWidth / window.innerHeight;
       // portrait(모바일): 방 전체가 보이도록 FOV를 넓힘
-      ;(camera as PerspectiveCamera).fov = aspect < 1 ? 85 : 55
-      camera.updateProjectionMatrix()
+      (camera as PerspectiveCamera).fov = aspect < 1 ? 85 : 55;
+      camera.updateProjectionMatrix();
     }
-  }, [camera])
+  }, [camera]);
 
-  const { handleWardrobeClick } = useMyRoomInteraction()
+  const { handleWardrobeClick } = useMyRoomInteraction();
 
   return (
     <>
@@ -64,7 +64,7 @@ export default function MyRoomScene() {
       {/* initialPosition y=0.7: 캡슐 하단(0.1)이 바닥(0.0)보다 위 → floor contact 없음 */}
       <Character initialPosition={[0, 0.7, -1]} />
     </>
-  )
+  );
 }
 
 function BedDecoration() {
@@ -91,5 +91,5 @@ function BedDecoration() {
         <meshStandardMaterial color="#5a3d1e" roughness={0.6} />
       </mesh>
     </group>
-  )
+  );
 }

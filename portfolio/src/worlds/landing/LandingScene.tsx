@@ -1,30 +1,36 @@
-import { useState } from 'react'
-import { OrbitControls, ContactShadows, Environment } from '@react-three/drei'
-import PrinterMesh from './objects/PrinterMesh'
-import DrawingDoorMesh from './objects/DrawingDoorMesh'
-import { useLandingStore } from '@/features/landing/landingStore'
-import { useSceneStore } from '@/shared/store'
-import { useLandingCamera } from './useLandingCamera'
+import { useState } from "react";
+import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
+import PrinterMesh from "./objects/PrinterMesh";
+import DrawingDoorMesh from "./objects/DrawingDoorMesh";
+import { useLandingStore } from "@/features/landing/landingStore";
+import { useSceneStore } from "@/shared/store";
+import { useLandingCamera } from "./useLandingCamera";
 
 export default function LandingScene() {
-  const isExploreMode = useLandingStore((s) => s.isExploreMode)
-  const isTransitioning = useSceneStore((s) => s.isTransitioning)
-  const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep)
+  const isExploreMode = useLandingStore((s) => s.isExploreMode);
+  const isTransitioning = useSceneStore((s) => s.isTransitioning);
+  const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep);
 
-  const { startFront, startSuck } = useLandingCamera()
-  const [attachDoor, setAttachDoor] = useState(false)
+  const { startFront, startSuck } = useLandingCamera();
+  const [attachDoor, setAttachDoor] = useState(false);
+  const [openDoor, setOpenDoor] = useState(false);
 
   const handlePrint = () => {
-    setOnboardingStep('printing')
-  }
+    setOnboardingStep("printing");
+  };
 
-  // 그림 클릭 → 카메라 정면 이동 → 완료 후 그림 벽 부착 → 700ms 후 suck
+  // 그림 클릭 → 카메라 정면 이동 → 문 부착 → 500ms 후 문 열림
   const handleDoorClick = () => {
     startFront(() => {
-      setAttachDoor(true)
-      setTimeout(startSuck, 700)
-    })
-  }
+      setAttachDoor(true);
+      setTimeout(() => setOpenDoor(true), 500);
+    });
+  };
+
+  // 문이 충분히 열렸을 때 suck 애니메이션 시작
+  const handleDoorFullyOpen = () => {
+    startSuck();
+  };
 
   return (
     <>
@@ -50,7 +56,11 @@ export default function LandingScene() {
         castShadow
         shadow-mapSize={[1024, 1024]}
       />
-      <directionalLight position={[-3, 4, -2]} intensity={0.4} color="#cce4ff" />
+      <directionalLight
+        position={[-3, 4, -2]}
+        intensity={0.4}
+        color="#cce4ff"
+      />
 
       {/* HDR 환경 리플렉션 */}
       <Environment preset="city" />
@@ -68,7 +78,12 @@ export default function LandingScene() {
       <PrinterMesh onPrint={handlePrint} />
 
       {/* 드로잉 문 메시 — paper-modal 단계에서 카메라 앞에 떠오름 */}
-      <DrawingDoorMesh shouldAttach={attachDoor} onDoorClick={handleDoorClick} />
+      <DrawingDoorMesh
+        shouldAttach={attachDoor}
+        shouldOpen={openDoor}
+        onDoorClick={handleDoorClick}
+        onDoorFullyOpen={handleDoorFullyOpen}
+      />
     </>
-  )
+  );
 }
