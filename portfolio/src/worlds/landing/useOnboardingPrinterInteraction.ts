@@ -1,10 +1,9 @@
 import { useEffect, useRef } from "react";
-import { LoadingManager, TextureLoader } from "three";
+import { useFrame } from "@react-three/fiber";
+import { TextureLoader } from "three";
 import type { Mesh, MeshStandardMaterial, Texture } from "three";
 import { useLandingStore } from "@/features/landing/landingStore";
-
-// DefaultLoadingManager와 격리 — useProgress(drei)에 영향 없음
-const isolatedManager = new LoadingManager();
+import { isolatedManager } from "./textureLoader";
 
 const SLOT_Y = 0.016;
 const PAPER_HALF_H = 0.19;
@@ -23,6 +22,7 @@ export function useOnboardingPrinterInteraction(
   const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep);
   const triggered = useRef(false);
   const preloadedTexture = useRef<Texture | null>(null);
+  const checkingCompletion = useRef(false);
 
   // drawnImageUrl 저장 즉시 프리로드 — printing 단계 진입 전에 텍스처 준비
   useEffect(() => {
@@ -69,15 +69,7 @@ export function useOnboardingPrinterInteraction(
       }
 
       setTargetY(FULL_EXTENDED_Y);
-
-      const check = setInterval(() => {
-        if (!paperRef.current) return;
-        if (Math.abs(paperRef.current.position.y - FULL_EXTENDED_Y) < 0.01) {
-          clearInterval(check);
-          triggered.current = false;
-          setOnboardingStep("paper-modal");
-        }
-      }, 50);
+      checkingCompletion.current = true;
     };
 
     if (preloadedTexture.current) {
@@ -94,4 +86,15 @@ export function useOnboardingPrinterInteraction(
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboardingStep]);
+
+  // setInterval 대신 useFrame으로 애니메이션 완료 감지
+  useFrame(() => {
+    if (!checkingCompletion.current) return;
+    if (!paperRef.current) return;
+    if (Math.abs(paperRef.current.position.y - FULL_EXTENDED_Y) < 0.01) {
+      checkingCompletion.current = false;
+      triggered.current = false;
+      setOnboardingStep("paper-modal");
+    }
+  });
 }

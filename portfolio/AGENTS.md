@@ -318,6 +318,87 @@ Invisible boundary walls → `fixed` RigidBody + `CuboidCollider`. Never use `Ma
 
 ---
 
+## Three.js / R3F Rules
+
+### `useFrame` inside `setState` — Forbidden
+
+`useFrame` runs every frame (60 fps). Calling a React `useState` setter inside it triggers 60 re-renders per second.
+Manage animation values with `useRef` and mutate Three.js objects directly.
+
+```tsx
+// ❌ Wrong — 60 re-renders/s
+const [intensity, setIntensity] = useState(0)
+useFrame(({ clock }) => { setIntensity(Math.sin(clock.elapsedTime * 5)) })
+
+// ✅ Correct — direct Three.js mutation, zero re-renders
+const lightRef = useRef<PointLight>(null)
+useFrame(({ clock }) => {
+  if (!lightRef.current) return
+  lightRef.current.intensity = Math.sin(clock.elapsedTime * 5)
+})
+```
+
+### `setInterval` / `setTimeout` animation polling — Forbidden
+
+Never poll animation completion with `setInterval` inside R3F. Use `useFrame` condition checks instead.
+
+```ts
+// ❌ Wrong
+const check = setInterval(() => {
+  if (Math.abs(mesh.position.y - target) < 0.01) { clearInterval(check); onDone() }
+}, 50)
+
+// ✅ Correct
+const checking = useRef(false)
+// on animation start: checking.current = true
+useFrame(() => {
+  if (!checking.current || !mesh.current) return
+  if (Math.abs(mesh.current.position.y - target) < 0.01) {
+    checking.current = false
+    onDone()
+  }
+})
+```
+
+### `LoadingManager` — One singleton per scene, shared via module
+
+Attaching `TextureLoader` to the default `LoadingManager` pollutes drei's `useProgress`.
+Declare one isolated manager per scene in a shared module file and import it everywhere in that scene.
+
+```ts
+// worlds/{scene}/textureLoader.ts
+import { LoadingManager } from 'three'
+export const isolatedManager = new LoadingManager()
+
+// ❌ Wrong — duplicate declaration per file
+const isolatedManager = new LoadingManager() // SomeMesh.tsx
+const isolatedManager = new LoadingManager() // someHook.ts
+```
+
+### `useEffect` — No synchronous `setState` in effect body (React Compiler rule)
+
+With `babel-plugin-react-compiler` enabled, calling `setState` synchronously in an effect body is a compile error.
+Always call `setState` inside an async IIFE.
+
+```ts
+// ❌ Wrong
+useEffect(() => {
+  if (!url) { setTexture(null); return }  // sync setState — compiler error
+}, [url])
+
+// ✅ Correct
+useEffect(() => {
+  let cancelled = false
+  ;(async () => {
+    if (!url) { if (!cancelled) setTexture(null); return }
+    // ... async load ...
+  })()
+  return () => { cancelled = true }
+}, [url])
+```
+
+---
+
 ## Next.js Anti-patterns — Never Do These
 
 - `useEffect + fetch` inside a component → extract to a hook
@@ -384,6 +465,10 @@ Before completing any task, verify:
 - [ ] `'use client'` not duplicated in `worlds/` child files (propagates from `WorldCanvas.tsx`)
 - [ ] `motion.*` not used inside R3F `<Canvas>`
 - [ ] `useFrame` callback contains no heavy computation
+- [ ] `useFrame` does not call any React `setState` — animation values use `useRef` + direct Three.js mutation
+- [ ] Animation completion is detected inside `useFrame` condition check, not `setInterval`/`setTimeout`
+- [ ] `TextureLoader` uses scene-shared `isolatedManager` from `textureLoader.ts`, not a per-file `new LoadingManager()`
+- [ ] `useEffect` body does not call `setState` synchronously — always inside async IIFE
 - [ ] If Rapier is used: character RigidBody type is `kinematicPosition`, not `dynamic`
 - [ ] If Rapier is used: position updated via `setNextKinematicTranslation()`, not direct mutation
 - [ ] If Rapier is used: `<Physics>` declared only in `WorldCanvas.tsx`, not per-scene

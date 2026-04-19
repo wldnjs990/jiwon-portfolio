@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Shape } from 'three'
+import type { PointLight } from 'three'
 import { usePrinterInteraction } from '../usePrinterInteraction'
 import { useOnboardingPrinterInteraction } from '../useOnboardingPrinterInteraction'
 import { useLandingStore } from '@/features/landing/landingStore'
@@ -28,12 +29,11 @@ export default function PrinterMesh({ onPrint }: PrinterMeshProps) {
   const [lidBtnHovered, setLidBtnHovered] = useState(false)
   const onboardingStep = useLandingStore((s) => s.onboardingStep)
 
-  // sparkle light intensity (state으로 리렌더 유발)
-  const [sparkleIntensity, setSparkleIntensity] = useState(0)
+  // sparkle light — ref로 직접 조작해 React 리렌더 방지
+  const sparkleLightRef = useRef<PointLight>(null)
   useFrame(({ clock }) => {
-    if (onboardingStep === 'print-ready') {
-      setSparkleIntensity(0.5 + Math.sin(clock.elapsedTime * 5) * 0.5)
-    }
+    if (!sparkleLightRef.current) return
+    sparkleLightRef.current.intensity = 0.5 + Math.sin(clock.elapsedTime * 5) * 0.5
   })
 
   // 직각삼각형 버튼 Shape (상판 우측 전면 모서리)
@@ -73,11 +73,12 @@ export default function PrinterMesh({ onPrint }: PrinterMeshProps) {
 
   return (
     <group>
-      {/* print-ready 단계 sparkle 포인트라이트 */}
+      {/* print-ready 단계 sparkle 포인트라이트 — intensity는 useFrame에서 직접 조작 */}
       {onboardingStep === 'print-ready' && (
         <pointLight
+          ref={sparkleLightRef}
           position={[BW / 2, BH + 0.1, BD / 2]}
-          intensity={sparkleIntensity}
+          intensity={0}
           color="#ffd700"
           distance={2}
         />

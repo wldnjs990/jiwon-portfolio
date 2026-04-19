@@ -462,6 +462,100 @@ import { RigidBody } from '@react-three/rapier'
 
 보이지 않는 경계벽도 `fixed` RigidBody + `CuboidCollider`로 구성합니다.
 
+### Three.js / R3F 패턴
+
+#### `useFrame` 안에서 React `setState` 호출 금지
+
+`useFrame`은 매 프레임(60fps) 실행되므로, 내부에서 `useState` setter를 호출하면 초당 60번 리렌더가 유발됩니다.
+애니메이션 값은 `useRef`로 관리하고, Three.js 객체는 ref를 통해 직접 조작합니다.
+
+```tsx
+// ❌ 금지 — 60fps 리렌더 유발
+const [intensity, setIntensity] = useState(0)
+useFrame(({ clock }) => {
+  setIntensity(Math.sin(clock.elapsedTime * 5))
+})
+
+// ✅ 올바른 방식 — Three.js 객체를 ref로 직접 조작
+const lightRef = useRef<PointLight>(null)
+useFrame(({ clock }) => {
+  if (!lightRef.current) return
+  lightRef.current.intensity = Math.sin(clock.elapsedTime * 5)
+})
+```
+
+#### R3F 씬 내 `setInterval`/`setTimeout` 애니메이션 폴링 금지
+
+R3F 씬 안에서 애니메이션 완료를 `setInterval`로 폴링하면 R3F 루프와 독립된 타이머가 생겨 동기화가 어렵습니다.
+`useFrame` 내부 조건 검사로 대체합니다.
+
+```ts
+// ❌ 금지
+const check = setInterval(() => {
+  if (Math.abs(mesh.position.y - target) < 0.01) {
+    clearInterval(check)
+    onComplete()
+  }
+}, 50)
+
+// ✅ 올바른 방식 — useFrame 내 조건 검사
+const checking = useRef(false)
+// (애니메이션 시작 시) checking.current = true
+useFrame(() => {
+  if (!checking.current) return
+  if (Math.abs(mesh.position.y - target) < 0.01) {
+    checking.current = false
+    onComplete()
+  }
+})
+```
+
+#### `TextureLoader` 사용 시 `LoadingManager` 격리
+
+`TextureLoader`를 기본 `DefaultLoadingManager`에 연결하면 drei의 `useProgress`가 간섭받아 로딩 진행도가 오염됩니다.
+격리된 매니저는 **씬 공유 모듈 파일 상단에 싱글턴으로 선언**하고, 같은 씬 내 여러 파일에서 import해 사용합니다.
+
+```ts
+// worlds/{scene}/textureLoader.ts — 씬 단위 공유 싱글턴
+import { LoadingManager } from 'three'
+export const isolatedManager = new LoadingManager()
+
+// ❌ 금지 — 각 파일에 중복 선언
+const isolatedManager = new LoadingManager() // DrawingDoorMesh.tsx
+const isolatedManager = new LoadingManager() // useOnboardingPrinterInteraction.ts
+```
+
+#### `useEffect` 내 `setState` 동기 호출 금지 (React Compiler 규칙)
+
+React Compiler(`babel-plugin-react-compiler`) 활성화 상태에서 `useEffect` 본문 안에서 `setState`를 동기 호출하면 컴파일 오류가 발생합니다.
+상태 초기화가 필요한 경우 async IIFE 안에서 처리합니다.
+
+```ts
+// ❌ 금지 — 동기 setState
+useEffect(() => {
+  if (!url) {
+    setTexture(null) // 오류: synchronous setState in effect
+    return
+  }
+  // ...
+}, [url])
+
+// ✅ 올바른 방식 — async IIFE 안에서 처리
+useEffect(() => {
+  let cancelled = false
+  ;(async () => {
+    if (!url) {
+      if (!cancelled) setTexture(null)
+      return
+    }
+    // ...
+  })()
+  return () => { cancelled = true }
+}, [url])
+```
+
+---
+
 ### konva / react-konva
 
 - 2D 캔버스 기능에만 사용, `features/` 하위에 `*Canvas.tsx` 파일로 배치
@@ -525,6 +619,10 @@ import { useInteractiveObject } from '@/features/interaction-sheet/useInteractiv
 - `features/` 간 직접 import 금지
 - `worlds/`↔`features/` 컴포넌트/훅 직접 import 금지
 - `useFrame` 안에 무거운 연산 배치 금지
+- `useFrame` 안에서 React `setState` 호출 금지 → `useRef` + Three.js 객체 직접 조작으로 대체
+- R3F 씬 내 애니메이션 완료 감지를 `setInterval`/`setTimeout`으로 폴링 금지 → `useFrame` 조건 검사로 대체
+- `TextureLoader` 사용 시 파일마다 `new LoadingManager()` 중복 선언 금지 → 씬 공유 `textureLoader.ts` 싱글턴에서 import
+- `useEffect` 본문에서 `setState` 동기 호출 금지 (React Compiler 오류) → async IIFE 안에서 처리
 - R3F `<Canvas>` 내부에서 `motion.*` 사용 금지
 - Rapier 도입 후 `groupRef.current.position` 직접 수정 금지 → `setNextKinematicTranslation()` 사용
 - 캐릭터에 `dynamic` RigidBody 사용 금지 → `kinematicPosition` 사용

@@ -1,7 +1,6 @@
 import { useMemo, useEffect, useRef, useState } from "react";
 import { useFrame } from "@react-three/fiber";
 import {
-  LoadingManager,
   MeshBasicMaterial,
   Quaternion,
   Shape,
@@ -11,9 +10,7 @@ import {
 } from "three";
 import type { Group, Mesh, Texture } from "three";
 import { useLandingStore } from "@/features/landing/landingStore";
-
-// DefaultLoadingManager 격리 — useProgress 간섭 방지
-const isolatedManager = new LoadingManager();
+import { isolatedManager } from "../textureLoader";
 
 // 프린터 본체 높이/깊이 (PrinterMesh와 동일)
 const BH = 0.7;
@@ -85,12 +82,12 @@ export default function DrawingDoorMesh({
 
   // drawnImageUrl 저장 즉시 프리로드
   useEffect(() => {
-    if (!drawnImageUrl) {
-      setTexture(null);
-      return;
-    }
     let cancelled = false;
     (async () => {
+      if (!drawnImageUrl) {
+        if (!cancelled) setTexture(null);
+        return;
+      }
       try {
         const t = await new Promise<Texture>((resolve, reject) => {
           new TextureLoader(isolatedManager).load(
