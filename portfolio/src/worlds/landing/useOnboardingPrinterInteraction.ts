@@ -1,21 +1,20 @@
 import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { TextureLoader } from "three";
-import type { Mesh, MeshStandardMaterial, Texture } from "three";
+import { TextureLoader, LoopOnce } from "three";
+import type { AnimationAction, Mesh, MeshStandardMaterial, Object3D, Texture } from "three";
 import { useLandingStore } from "@/features/landing/landingStore";
 import { isolatedManager } from "./textureLoader";
 
-const SLOT_Y = 0.016;
-const PAPER_HALF_H = 0.19;
-export const FULL_EXTENDED_Y = SLOT_Y + PAPER_HALF_H * 1.1;
+// print_action 그룹 clip 이름 (usePrinterInteraction과 동일하게 유지)
+const PRINT_ACTION_CLIPS = ['print_button_click', 'label_up'] as const
 
 /**
  * 온보딩 printing 단계 전용 훅.
- * paperRef / setTargetY 는 usePrinterInteraction 에서 받는다.
+ * scene / actions 는 usePrinterInteraction 에서 받는다.
  */
 export function useOnboardingPrinterInteraction(
-  paperRef: React.RefObject<Mesh | null>,
-  setTargetY: (y: number) => void,
+  scene: Object3D,
+  actions: Record<string, AnimationAction | null>,
 ) {
   const onboardingStep = useLandingStore((s) => s.onboardingStep);
   const drawnImageUrl = useLandingStore((s) => s.drawnImageUrl);
@@ -55,28 +54,33 @@ export function useOnboardingPrinterInteraction(
   useEffect(() => {
     if (onboardingStep !== "printing") return;
     if (triggered.current) return;
-    if (!paperRef.current) return;
 
     triggered.current = true;
 
     const applyAndAnimate = (texture: Texture | null) => {
-      if (!paperRef.current) return;
-
-      if (texture) {
-        const mat = paperRef.current.material as MeshStandardMaterial;
+      // GLB 내 종이 메시를 이름으로 탐색해 텍스처 적용
+      const paperMesh = scene.getObjectByName("NEMONIC_CARTRIDGE_PAPER") as Mesh | null;
+      if (paperMesh && texture) {
+        const mat = paperMesh.material as MeshStandardMaterial;
         mat.map = texture;
         mat.needsUpdate = true;
       }
 
-      setTargetY(FULL_EXTENDED_Y);
+      // print_action 그룹의 모든 clip 동시 재생
+      PRINT_ACTION_CLIPS.forEach((clipName) => {
+        const action = actions[clipName];
+        if (!action) return;
+        action.reset().setLoop(LoopOnce, 1);
+        action.clampWhenFinished = true;
+        action.play();
+      });
+
       checkingCompletion.current = true;
     };
 
     if (preloadedTexture.current) {
-      // 프리로드 완료 → 동기 적용
       applyAndAnimate(preloadedTexture.current);
     } else if (drawnImageUrl) {
-      // 아직 프리로드 중 → 직접 로드 후 적용 (폴백)
       new TextureLoader(isolatedManager).load(drawnImageUrl, (texture) => {
         preloadedTexture.current = texture;
         applyAndAnimate(texture);
@@ -87,11 +91,13 @@ export function useOnboardingPrinterInteraction(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onboardingStep]);
 
-  // setInterval 대신 useFrame으로 애니메이션 완료 감지
+  // label_up clip 완료 감지 → paper-modal 전환 (종이가 다 나온 시점)
   useFrame(() => {
     if (!checkingCompletion.current) return;
-    if (!paperRef.current) return;
-    if (Math.abs(paperRef.current.position.y - FULL_EXTENDED_Y) < 0.01) {
+    const action = actions["label_up"];
+    if (!action) return;
+    const duration = action.getClip().duration;
+    if (action.time >= duration - 0.05) {
       checkingCompletion.current = false;
       triggered.current = false;
       setOnboardingStep("paper-modal");

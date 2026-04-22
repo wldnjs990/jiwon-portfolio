@@ -39,6 +39,43 @@ Before writing any code, verify `package.json` contains **all** of the following
 | `motion` | DOM animation |
 | `konva` + `react-konva` | 2D canvas |
 
+## Variable & Parameter Naming
+
+Code must be readable without comments. Single-letter or cryptic abbreviations are forbidden.
+
+| ❌ Forbidden | ✅ Use instead |
+|-------------|---------------|
+| `p` | `doorOpenProgress` |
+| `u` | `uniformScale` |
+| `d` | `delta` |
+| `t` | `texture` / `elapsedTime` |
+| `BH` | `BODY_HEIGHT` |
+| `BD` | `BODY_DEPTH` |
+| `HW` | `HALF_WIDTH` |
+| `CY` | `ARCH_CENTER_Y` |
+| `cb` | `onComplete` / `callback` |
+| `idx` | `index` |
+
+Rules:
+- **Constants**: descriptive `SCREAMING_SNAKE_CASE` — `PRINTER_BODY_HEIGHT`, `HUD_DISTANCE`, `IDENTITY_QUATERNION`
+- **Local variables**: meaningful `camelCase` — `doorOpenProgress`, `uniformScale`, `cameraForward`
+- **Parameters**: function signature alone must convey intent — `delta` not `d`, `progress` not `p`
+- **Loop counter exception**: `i`, `j` are allowed for simple numeric indices only
+
+```ts
+// ❌ Wrong
+const BH = 0.7
+const p = doorOpenProgress.current
+meshRef.current.scale.x = u * (1 - p)
+
+// ✅ Correct
+const BODY_HEIGHT = 0.7
+const progress = doorOpenProgress.current
+meshRef.current.scale.x = uniformScale * (1 - progress)
+```
+
+---
+
 ## Layer Architecture
 
 ```
@@ -453,6 +490,7 @@ Before completing any task, verify:
 **Setup (check once per project)**
 - [ ] All required packages from the stack are present in `package.json` — install any that are missing before writing code
 
+- [ ] No single-letter or cryptic-abbreviation variable/constant names (e.g. `p`, `u`, `BH`) — use descriptive names
 - [ ] New file placed in the correct layer (`app/`, `worlds/`, `features/`, `shared/`)
 - [ ] Filename matches the suffix convention (`*Scene`, `*Mesh`, `*Visual`, `use*Interaction`, etc.)
 - [ ] Component file contains no API calls, data transformation, or game logic

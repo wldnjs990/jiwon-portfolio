@@ -95,6 +95,30 @@ src/
 
 ---
 
+## 변수·파라미터 네이밍
+
+코드를 읽는 사람이 주석 없이도 의미를 파악할 수 있어야 합니다.
+
+| ❌ 금지 | ✅ 올바른 예 |
+|---------|------------|
+| `p` | `doorOpenProgress` |
+| `u` | `uniformScale` |
+| `d` | `delta` |
+| `t` | `texture` / `elapsedTime` |
+| `BH` | `BODY_HEIGHT` |
+| `BD` | `BODY_DEPTH` |
+| `HW` | `HALF_WIDTH` |
+| `CY` | `ARCH_CENTER_Y` |
+| `cb` | `onComplete` / `callback` |
+| `idx` | `index` |
+
+- **상수**: 역할이 드러나는 `SCREAMING_SNAKE_CASE` — `PRINTER_BODY_HEIGHT`, `HUD_DISTANCE`, `IDENTITY_QUATERNION`
+- **지역 변수**: 의미 전달 `camelCase` — `doorOpenProgress`, `uniformScale`, `cameraForward`
+- **파라미터**: 함수 시그니처만 봐도 역할이 명확해야 함 — `delta` (not `d`), `progress` (not `p`)
+- **루프 변수 예외**: `i`, `j`는 단순 인덱스에 한해 허용
+
+---
+
 ## 파일 네이밍
 
 | 종류 | 케이스 | 예시 |
@@ -314,6 +338,110 @@ export const api = {
 - DOM 요소 애니메이션에 사용 (`motion.div`, `AnimatePresence` 등)
 - R3F `<Canvas>` 내부에서 `motion.*` 사용 금지
 
+### @react-three/rapier
+
+물리 엔진은 캐릭터 이동, 충돌 감지, 디지털 트윈 설비 시뮬레이션에 사용합니다.
+
+**Physics Provider**: `<Physics>`는 `WorldCanvas.tsx` 내 `<Canvas>` 바로 하위에 하나만 배치합니다. 씬별로 중복 선언 금지.
+
+```tsx
+<Canvas>
+  <Physics gravity={[0, -9.81, 0]}>
+    <SceneManager />
+  </Physics>
+</Canvas>
+```
+
+**RigidBody 타입 선택 기준**
+
+| 타입 | 사용 대상 |
+|------|-----------|
+| `kinematicPosition` | 캐릭터, 외부 데이터로 위치가 갱신되는 설비·로봇 |
+| `fixed` | 바닥, 벽, 고정 구조물 |
+| `dynamic` | 물리적으로 자유 반응이 필요한 물체 |
+| `sensor: true` Collider | 충돌 이벤트만 감지, 물리 반응 없음 (근접 감지 범위) |
+
+- 캐릭터에 `dynamic` 금지 → `kinematicPosition` 사용
+- 위치 갱신은 `setNextKinematicTranslation()` 사용 — `position` 직접 수정 금지
+- 경계 처리는 `fixed` RigidBody + Collider — `MathUtils.clamp` 금지
+- 새 구조물·설비는 반드시 `RigidBody`로 감싸야 캐릭터가 막힘
+
+---
+
+### Three.js / R3F 패턴
+
+#### `useFrame` 안에서 React `setState` 호출 금지
+
+`useFrame`은 60fps로 실행되므로 `setState` 호출 시 초당 60번 리렌더가 유발됩니다. 애니메이션 값은 `useRef`로 관리하고 Three.js 객체를 ref로 직접 조작합니다.
+
+```tsx
+// ❌ 금지
+const [intensity, setIntensity] = useState(0)
+useFrame(({ clock }) => { setIntensity(Math.sin(clock.elapsedTime * 5)) })
+
+// ✅ 올바른 방식
+const lightRef = useRef<PointLight>(null)
+useFrame(({ clock }) => {
+  if (!lightRef.current) return
+  lightRef.current.intensity = Math.sin(clock.elapsedTime * 5)
+})
+```
+
+#### R3F 씬 내 `setInterval`/`setTimeout` 애니메이션 폴링 금지
+
+```ts
+// ❌ 금지
+const check = setInterval(() => {
+  if (Math.abs(mesh.position.y - target) < 0.01) { clearInterval(check); onDone() }
+}, 50)
+
+// ✅ 올바른 방식 — useFrame 내 조건 검사
+const checking = useRef(false)
+useFrame(() => {
+  if (!checking.current) return
+  if (Math.abs(mesh.current.position.y - target) < 0.01) {
+    checking.current = false
+    onDone()
+  }
+})
+```
+
+#### `TextureLoader` 사용 시 `LoadingManager` 격리
+
+`TextureLoader`를 기본 `DefaultLoadingManager`에 연결하면 drei의 `useProgress`가 오염됩니다. 씬 공유 싱글턴을 별도 파일에 선언하고 import합니다.
+
+```ts
+// worlds/{scene}/textureLoader.ts — 씬 단위 공유 싱글턴
+import { LoadingManager } from 'three'
+export const isolatedManager = new LoadingManager()
+
+// ❌ 금지 — 각 파일에 중복 선언
+const isolatedManager = new LoadingManager() // SomeMesh.tsx
+const isolatedManager = new LoadingManager() // someHook.ts
+```
+
+#### `useEffect` 내 동기 `setState` 금지 (React Compiler 규칙)
+
+`babel-plugin-react-compiler` 활성화 상태에서 `useEffect` 본문 안 동기 `setState`는 컴파일 오류입니다. async IIFE 안에서 처리합니다.
+
+```ts
+// ❌ 금지
+useEffect(() => {
+  if (!url) { setTexture(null); return }
+}, [url])
+
+// ✅ 올바른 방식
+useEffect(() => {
+  let cancelled = false
+  ;(async () => {
+    if (!url) { if (!cancelled) setTexture(null); return }
+  })()
+  return () => { cancelled = true }
+}, [url])
+```
+
+---
+
 ### konva / react-konva
 
 - 2D 캔버스 기능에만 사용, `features/` 하위에 `*Canvas.tsx` 파일로 배치
@@ -334,7 +462,19 @@ export const api = {
 - `index.ts` 배럴을 우회한 직접 경로 import 금지
 - `features/` 간 직접 import 금지
 - `worlds/`↔`features/` 컴포넌트/훅 직접 import 금지
+- 단일 문자·무의미한 축약어 변수명 금지 (`p`, `u`, `BH` 등) → 의미가 드러나는 이름 사용
 - `useFrame` 안에 무거운 연산 배치 금지
+- `useFrame` 안에서 React `setState` 호출 금지 → `useRef` + Three.js 객체 직접 조작으로 대체
+- R3F 씬 내 애니메이션 완료 감지를 `setInterval`/`setTimeout`으로 폴링 금지 → `useFrame` 조건 검사로 대체
+- `TextureLoader` 사용 시 파일마다 `new LoadingManager()` 중복 선언 금지 → 씬 공유 `textureLoader.ts` 싱글턴에서 import
+- `useEffect` 본문에서 `setState` 동기 호출 금지 (React Compiler 오류) → async IIFE 안에서 처리
 - R3F `<Canvas>` 내부에서 `motion.*` 사용 금지
+- 캐릭터에 `dynamic` RigidBody 사용 금지 → `kinematicPosition` 사용
+- Rapier 도입 후 `position` 직접 수정 금지 → `setNextKinematicTranslation()` 사용
+- `<Physics>` Provider를 씬별로 중복 선언 금지 → `WorldCanvas.tsx` 한 곳에만
+- Rapier 사용 시 경계를 `MathUtils.clamp`로 처리 금지 → `fixed` RigidBody + Collider로 처리
 - `*.tsx` 컴포넌트 파일에 API 호출, 데이터 변환, 게임 로직 직접 작성 금지 → 훅/스토어로 분리
 - 서버 컴포넌트 파일에 `'use client'` 선언 금지 (필요 시 별도 파일로 분리)
+- `<a>` 태그 사용 금지 → `<Link>`
+- `<img>` 태그 사용 금지 → `<Image>`
+- `NEXT_PUBLIC_` 없는 환경변수를 클라이언트 컴포넌트에서 참조 금지

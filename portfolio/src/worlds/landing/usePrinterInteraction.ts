@@ -1,97 +1,65 @@
-import { useRef, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
-import type { Group, Mesh } from 'three'
-
-// 뚜껑 inner group의 world Y = 0.7 기준 로컬 좌표
-const SLOT_Y = 0.016
-const PAPER_HALF_H = 0.19
-
-export const HIDDEN_Y = SLOT_Y - PAPER_HALF_H - 0.01      // ≈ -0.184
-export const EXTENDED_Y = SLOT_Y + PAPER_HALF_H * 0.65    // ≈ 0.140 (65% 노출)
-
-const LID_OPEN_ANGLE = -Math.PI * 0.72
+import { useState } from 'react'
+import { useGLTF, useAnimations } from '@react-three/drei'
+import { LoopOnce } from 'three'
+import type { AnimationAction, Object3D } from 'three'
 
 /**
- * 탐험(Explore) 모드 전용 프린터 인터랙션 훅.
- * - 삼각형 버튼: 라벨지 65% 출력 후 자동 회수
- * - 뚜껑 열기/닫기
- * 온보딩 출력 로직은 useOnboardingPrinterInteraction에서 담당.
+ * GLB 기반 프린터 인터랙션 훅.
+ *
+ * GLB export 시 NLA 트랙이 오브젝트 단위 clip으로 분리됨:
+ *   print_action  → ['print_button_click', 'label_up']
+ *   print_head_open → ['toggle_side_button', 'print_head_up']
+ *
+ * 코드에서 그룹을 정의해 동시 재생함.
  */
+
+// NLA 트랙 → 실제 GLB clip 이름 그룹 매핑
+const PRINT_ACTION_CLIPS = ['print_button_click', 'label_up'] as const
+const OPEN_HEAD_CLIPS = ['toggle_side_button', 'print_head_up'] as const
+
+/** 클릭된 mesh에서 조상을 타고 올라가며 해당 버튼 그룹명을 찾는다 */
+export function findButtonAncestor(object: Object3D, buttonName: string): boolean {
+  let current: Object3D | null = object
+  while (current) {
+    if (current.name === buttonName) return true
+    current = current.parent
+  }
+  return false
+}
+
+function playOnce(action: AnimationAction, reverse = false) {
+  action.reset().setLoop(LoopOnce, 1)
+  action.clampWhenFinished = true
+  if (reverse) {
+    action.timeScale = -1
+    action.time = action.getClip().duration
+  } else {
+    action.timeScale = 1
+  }
+  action.play()
+}
+
 export function usePrinterInteraction() {
-  const [isPrinting, setIsPrinting] = useState(false)
+  const { scene, animations } = useGLTF('/nemonic-custom.glb')
+  const { actions } = useAnimations(animations, scene)
   const [lidOpen, setLidOpen] = useState(false)
 
-  const paperRef = useRef<Mesh>(null)
-  const lidGroupRef = useRef<Group>(null)
-  const toggleButtonRef = useRef<Mesh>(null)
-
-  const targetY = useRef(HIDDEN_Y)
-  const targetLidAngle = useRef(0)
-  const retractTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // 온보딩 훅이 targetY를 제어할 수 있도록 setter 노출
-  const setTargetY = (y: number) => {
-    targetY.current = y
+  const handlePrintButtonClick = () => {
+    PRINT_ACTION_CLIPS.forEach((clipName) => {
+      const action = actions[clipName]
+      if (action) playOnce(action)
+    })
   }
 
-  const handleButtonPress = () => {
-    if (isPrinting || lidOpen) return
-    setIsPrinting(true)
-    if (retractTimer.current) clearTimeout(retractTimer.current)
-    targetY.current = EXTENDED_Y
-    retractTimer.current = setTimeout(() => {
-      targetY.current = HIDDEN_Y
-      setIsPrinting(false)
-    }, 2500)
+  const handleOpenButtonClick = () => {
+    OPEN_HEAD_CLIPS.forEach((clipName) => {
+      const action = actions[clipName]
+      if (action) playOnce(action, lidOpen)
+    })
+    setLidOpen((prev) => !prev)
   }
 
-  const handleLidToggle = () => {
-    const next = !lidOpen
-    if (next) {
-      targetY.current = HIDDEN_Y
-      if (retractTimer.current) {
-        clearTimeout(retractTimer.current)
-        retractTimer.current = null
-      }
-      setIsPrinting(false)
-    }
-    targetLidAngle.current = next ? LID_OPEN_ANGLE : 0
-    setLidOpen(next)
-  }
-
-  useFrame((_, delta) => {
-    if (paperRef.current) {
-      const diff = targetY.current - paperRef.current.position.y
-      if (Math.abs(diff) > 0.0001) {
-        paperRef.current.position.y += diff * Math.min(delta * 5, 1)
-      }
-    }
-
-    if (lidGroupRef.current) {
-      const diff = targetLidAngle.current - lidGroupRef.current.rotation.x
-      if (Math.abs(diff) > 0.0001) {
-        lidGroupRef.current.rotation.x += diff * Math.min(delta * 4, 1)
-      }
-    }
-
-    if (toggleButtonRef.current) {
-      if (lidOpen && toggleButtonRef.current.position.y > -0.04) {
-        toggleButtonRef.current.position.y -= 0.01
-      } else if (!lidOpen && toggleButtonRef.current.position.y < 0.04) {
-        toggleButtonRef.current.position.y += 0.01
-      }
-    }
-  })
-
-  return {
-    paperRef,
-    lidGroupRef,
-    toggleButtonRef,
-    isPrinting,
-    lidOpen,
-    handleButtonPress,
-    handleLidToggle,
-    setTargetY,
-    HIDDEN_Y,
-  }
+  return { scene, actions, handlePrintButtonClick, handleOpenButtonClick }
 }
+
+useGLTF.preload('/nemonic-custom.glb')

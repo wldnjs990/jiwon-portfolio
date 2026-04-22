@@ -118,6 +118,46 @@ src/
 
 ---
 
+## 변수·파라미터 네이밍
+
+코드를 읽는 사람이 주석 없이도 의미를 파악할 수 있어야 합니다.
+
+### 금지: 단일 문자·무의미한 축약어
+
+| ❌ 금지 | ✅ 올바른 예 |
+|---------|------------|
+| `p` | `doorOpenProgress` |
+| `u` | `uniformScale` |
+| `d` | `delta` |
+| `t` | `texture` / `elapsedTime` |
+| `BH` | `BODY_HEIGHT` |
+| `BD` | `BODY_DEPTH` |
+| `HW` | `HALF_WIDTH` |
+| `CY` | `ARCH_CENTER_Y` |
+| `cb` | `onComplete` / `callback` |
+| `idx` | `index` |
+
+### 규칙
+
+- **상수**: 역할이 드러나는 `SCREAMING_SNAKE_CASE` — `PRINTER_BODY_HEIGHT`, `HUD_DISTANCE`, `IDENTITY_QUATERNION`
+- **지역 변수**: `camelCase`로 의미 전달 — `doorOpenProgress`, `uniformScale`, `cameraForward`
+- **파라미터**: 함수 시그니처만 봐도 역할이 명확해야 함 — `delta` (not `d`), `progress` (not `p`)
+- **루프 변수 예외**: `i`, `j`는 단순 인덱스에 한해 허용. 그 외 단일 문자 금지.
+
+```ts
+// ❌ 금지
+const BH = 0.7
+const p = doorOpenProgress.current
+meshRef.current.scale.x = u * (1 - p)
+
+// ✅ 올바른 예
+const BODY_HEIGHT = 0.7
+const progress = doorOpenProgress.current
+meshRef.current.scale.x = uniformScale * (1 - progress)
+```
+
+---
+
 ## 파일 네이밍
 
 | 종류 | 케이스 | 예시 |
