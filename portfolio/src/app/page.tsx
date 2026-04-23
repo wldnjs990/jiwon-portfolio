@@ -6,6 +6,7 @@ import {
   PaperModalOverlay,
   ExploreToggle,
   TransitionOverlay,
+  PrinterProximityHUD,
 } from "@/features/landing";
 import {
   BookshelfModal,
@@ -23,6 +24,7 @@ export default function Page() {
       <PrintReadyOverlay />
       <PaperModalOverlay />
       <ExploreToggle />
+      <PrinterProximityHUD />
       <TransitionOverlay />
       <BookshelfModal />
       <BackToLandingButton />

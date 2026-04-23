@@ -2,16 +2,23 @@ import { useState } from "react";
 import { OrbitControls, ContactShadows, Environment } from "@react-three/drei";
 import PrinterMesh from "./objects/PrinterMesh";
 import DrawingDoorMesh from "./objects/DrawingDoorMesh";
+import GroundMesh from "./objects/GroundMesh";
 import { useLandingStore } from "@/features/landing/landingStore";
 import { useSceneStore } from "@/shared/store";
 import { useLandingCamera } from "./useLandingCamera";
+import { useLandingInteraction } from "./useLandingInteraction";
+import Character from "../_infra/Character";
 
 export default function LandingScene() {
   const isExploreMode = useLandingStore((s) => s.isExploreMode);
+  const isPrinterFocused = useLandingStore((s) => s.isPrinterFocused);
   const isTransitioning = useSceneStore((s) => s.isTransitioning);
   const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep);
 
   const { startFront, startSuck } = useLandingCamera();
+
+  // 프린터 근접 감지
+  useLandingInteraction();
   const [attachDoor, setAttachDoor] = useState(false);
   const [openDoor, setOpenDoor] = useState(false);
 
@@ -34,9 +41,9 @@ export default function LandingScene() {
 
   return (
     <>
-      {/* 카메라 — 온보딩 완료 + 체험 모드에서만 360도 회전 가능 */}
+      {/* 카메라 — 프린터 포커스 + 체험 모드에서만 360도 회전 가능 */}
       <OrbitControls
-        enabled={isExploreMode && !isTransitioning}
+        enabled={isPrinterFocused && isExploreMode && !isTransitioning}
         target={[0, 0.35, 0]}
         enablePan={false}
         enableZoom={true}
@@ -65,14 +72,21 @@ export default function LandingScene() {
       {/* HDR 환경 리플렉션 */}
       <Environment preset="city" />
 
-      {/* 바닥 그림자 */}
+      {/* 바닥 그림자 — y=0.002로 GroundMesh(y=0)와 z-fighting 방지 */}
       <ContactShadows
-        position={[0, 0, 0]}
+        position={[0, 0.002, 0]}
         opacity={0.35}
         scale={5}
         blur={2}
         far={2}
       />
+
+      {/* 물리 바닥 */}
+      <GroundMesh />
+
+      {/* 이동 가능한 캐릭터 — 프린터(원점)에서 3유닛 앞에 배치, 1/3 크기 */}
+      {/* Y=0.7: 내부 모델 오프셋 -0.7 적용 시 발이 바닥(y=0)에 정확히 닿음 */}
+      <Character initialPosition={[0, 0.7, 3]} modelScale={0.17} />
 
       {/* 네모닉 프린터 메시 */}
       <PrinterMesh onPrint={handlePrint} />

@@ -14,9 +14,10 @@ const FADE_DURATION = 0.2
 
 interface CharacterProps {
   initialPosition?: [number, number, number]
+  modelScale?: number
 }
 
-export default function Character({ initialPosition = [0, 0.5, 0] }: CharacterProps) {
+export default function Character({ initialPosition = [0, 0.5, 0], modelScale = 0.5 }: CharacterProps) {
   const { scene, animations } = useGLTF('/nong_dam_gom.glb')
   const rb = useRef<RapierRigidBody>(null)
   const modelRef = useRef<Group>(null)
@@ -70,7 +71,7 @@ export default function Character({ initialPosition = [0, 0.5, 0] }: CharacterPr
       <CapsuleCollider args={[0.3, 0.3]} friction={0} restitution={0} />
       {/* 캡슐 중심 y=0.7 기준 — 발이 바닥(y=0)에 닿게 오프셋 */}
       <group ref={modelRef} position={[0, -0.7, 0]}>
-        <primitive object={scene} scale={0.5} />
+        <primitive object={scene} scale={modelScale} />
       </group>
     </RigidBody>
   )

@@ -7,19 +7,35 @@ import { useSceneStore } from "@/shared/store";
 export default function ExploreToggle() {
   const { isExploreMode, setExploreMode } = useLandingStore();
   const currentScene = useSceneStore((s) => s.currentScene);
-  const onboardingStep = useLandingStore((s) => s.onboardingStep)
   const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep)
+  const isPrinterFocused = useLandingStore((s) => s.isPrinterFocused)
+  const setIsPrinterFocused = useLandingStore((s) => s.setIsPrinterFocused)
 
   if (currentScene !== "landing") return null
-  // idle 상태에서만 표시 (온보딩 진행 중에는 숨김)
-  if (onboardingStep !== 'idle') return null
+  // 프린터 포커스 모드에서만 표시
+  if (!isPrinterFocused) return null
 
   const handleEnterWorld = () => {
     setOnboardingStep('welcome')
   }
 
+  const handleBack = () => {
+    setIsPrinterFocused(false)
+    setExploreMode(false)
+  }
+
   return (
     <>
+      {/* 돌아가기 버튼 */}
+      <button
+        onClick={handleBack}
+        className="absolute top-4 left-4 z-20 flex items-center gap-1
+          px-3 py-2 rounded-full bg-white/80 text-black/70
+          hover:bg-white shadow-md text-sm font-medium transition-all duration-200"
+      >
+        ← 돌아가기
+      </button>
+
       <button
         onClick={() => setExploreMode(!isExploreMode)}
         className={`

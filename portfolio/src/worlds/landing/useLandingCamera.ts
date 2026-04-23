@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { useLandingStore } from "@/features/landing/landingStore";
-import { useSceneStore } from "@/shared/store";
+import { useSceneStore, characterPosRef } from "@/shared/store";
 
 // top-down 45° — 프린터 위에서 내려다보는 시점
 const AIM_POS = new Vector3(0, 2.0, 2.0);
@@ -15,21 +15,39 @@ const FRONT_LOOKAT = new Vector3(0, 0.35, 0);
 // 문 중심으로 빨려들어가는 최종 위치
 const SUCK_TARGET = new Vector3(0, 0.35, 0.55);
 
+// 팔로우 카메라 — 캐릭터 기준 고정 오프셋
+const FOLLOW_OFFSET = new Vector3(0, 5, 4);
+const FOLLOW_LOOKAT_Y_OFFSET = 0.5;
+const FOLLOW_SMOOTH = 0.05;
+
 function easeInOut(t: number) {
   return t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
 }
 
-type CamPhase = "idle" | "aim" | "front" | "suck";
+type CamPhase = "idle" | "aim" | "front" | "suck" | "follow";
 
 export function useLandingCamera() {
   const setScene = useSceneStore((s) => s.setScene);
   const setTransitioning = useSceneStore((s) => s.setTransitioning);
   const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep);
   const onboardingStep = useLandingStore((s) => s.onboardingStep);
+  const isPrinterFocused = useLandingStore((s) => s.isPrinterFocused);
 
-  const phase = useRef<CamPhase>("idle");
+  const phase = useRef<CamPhase>("follow");
   const progress = useRef(0);
   const startPos = useRef(new Vector3());
+  // GC-friendly: 매 프레임 new Vector3 생성 방지
+  const followTargetPos = useRef(new Vector3());
+
+  // isPrinterFocused 변경 시 카메라 페이즈 전환
+  useEffect(() => {
+    if (isPrinterFocused) {
+      phase.current = "idle"; // OrbitControls에 카메라 제어 양도
+    } else {
+      phase.current = "follow"; // 캐릭터 팔로우 재개
+      progress.current = 0;
+    }
+  }, [isPrinterFocused]);
 
   // camera-aim 단계가 되면 aim 페이즈 시작
   useEffect(() => {
@@ -38,6 +56,10 @@ export function useLandingCamera() {
       progress.current = 0;
     }
   }, [onboardingStep]);
+
+  const startFollow = () => {
+    phase.current = "follow";
+  };
 
   const frontReadyCallback = useRef<(() => void) | null>(null);
 
@@ -54,9 +76,25 @@ export function useLandingCamera() {
   };
 
   useFrame((state, delta) => {
-    if (phase.current === "idle") return;
-
     const { camera } = state;
+
+    // follow: 캐릭터를 고정 오프셋으로 추적
+    if (phase.current === "follow") {
+      followTargetPos.current.set(
+        characterPosRef.x + FOLLOW_OFFSET.x,
+        characterPosRef.y + FOLLOW_OFFSET.y,
+        characterPosRef.z + FOLLOW_OFFSET.z,
+      );
+      camera.position.lerp(followTargetPos.current, FOLLOW_SMOOTH);
+      camera.lookAt(
+        characterPosRef.x,
+        characterPosRef.y + FOLLOW_LOOKAT_Y_OFFSET,
+        characterPosRef.z,
+      );
+      return;
+    }
+
+    if (phase.current === "idle") return;
 
     // aim: top-down 45° 이동 → 완료 시 print-ready
     if (phase.current === "aim") {
@@ -117,5 +155,5 @@ export function useLandingCamera() {
     }
   });
 
-  return { startFront, startSuck };
+  return { startFront, startSuck, startFollow };
 }
