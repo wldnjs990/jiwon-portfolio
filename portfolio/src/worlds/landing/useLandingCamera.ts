@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import { Vector3 } from "three";
 import { useLandingStore } from "@/features/landing/landingStore";
-import { useSceneStore, characterPosRef } from "@/shared/store";
+import { useSceneStore, characterPosRef } from "@/shared/stores";
 
 // top-down 45° — 프린터 위에서 내려다보는 시점
 const AIM_POS = new Vector3(0, 2.0, 2.0);

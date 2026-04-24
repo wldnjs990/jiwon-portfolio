@@ -13,7 +13,7 @@ export default function WorldCanvas() {
       style={{ width: "100vw", height: "100vh" }}
       gl={{ antialias: true }}
     >
-      <Physics gravity={[0, -9.81, 0]}>
+      <Physics gravity={[0, -9.81, 0]} timeStep="vary">
         <Suspense fallback={null}>
           <SceneManager />
         </Suspense>

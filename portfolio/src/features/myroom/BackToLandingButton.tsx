@@ -1,26 +1,26 @@
-'use client'
+"use client";
 
-import { ArrowLeft } from 'lucide-react'
-import { useSceneStore } from '@/shared/store'
-import { useLandingStore } from '@/features/landing/landingStore'
+import { ArrowLeft } from "lucide-react";
+import { useSceneStore } from "@/shared/stores";
+import { useLandingStore } from "@/features/landing/landingStore";
 
 export default function BackToLandingButton() {
-  const currentScene = useSceneStore((s) => s.currentScene)
-  const setScene = useSceneStore((s) => s.setScene)
-  const setTransitioning = useSceneStore((s) => s.setTransitioning)
-  const setExploreMode = useLandingStore((s) => s.setExploreMode)
+  const currentScene = useSceneStore((s) => s.currentScene);
+  const setScene = useSceneStore((s) => s.setScene);
+  const setTransitioning = useSceneStore((s) => s.setTransitioning);
+  const setExploreMode = useLandingStore((s) => s.setExploreMode);
 
-  if (currentScene !== 'myroom') return null
+  if (currentScene !== "myroom") return null;
 
   const handleBack = () => {
-    setTransitioning(true)
+    setTransitioning(true);
     // 페이드 후 씬 전환
     setTimeout(() => {
-      setScene('landing')
-      setExploreMode(false)
-      setTransitioning(false)
-    }, 500)
-  }
+      setScene("landing");
+      setExploreMode(false);
+      setTransitioning(false);
+    }, 500);
+  };
 
   return (
     <button
@@ -32,5 +32,5 @@ export default function BackToLandingButton() {
       <ArrowLeft size={16} />
       <span>랜딩으로</span>
     </button>
-  )
+  );
 }

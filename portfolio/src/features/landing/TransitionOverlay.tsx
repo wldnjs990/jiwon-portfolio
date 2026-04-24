@@ -1,14 +1,14 @@
-'use client'
+"use client";
 
-import { AnimatePresence, motion } from 'motion/react'
-import { useSceneStore } from '@/shared/store'
-import { useLandingStore } from './landingStore'
+import { AnimatePresence, motion } from "motion/react";
+import { useSceneStore } from "@/shared/stores";
+import { useLandingStore } from "./landingStore";
 
 export default function TransitionOverlay() {
-  const isTransitioning = useSceneStore((s) => s.isTransitioning)
-  const onboardingStep = useLandingStore((s) => s.onboardingStep)
+  const isTransitioning = useSceneStore((s) => s.isTransitioning);
+  const onboardingStep = useLandingStore((s) => s.onboardingStep);
 
-  const isEntering = onboardingStep === 'entering'
+  const isEntering = onboardingStep === "entering";
 
   return (
     <AnimatePresence>
@@ -26,7 +26,12 @@ export default function TransitionOverlay() {
               <motion.h1
                 initial={{ scale: 0.5, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', stiffness: 200, damping: 20, delay: 0.3 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 200,
+                  damping: 20,
+                  delay: 0.3,
+                }}
                 className="text-white text-4xl font-bold tracking-widest select-none"
               >
                 Nemonic World
@@ -35,9 +40,9 @@ export default function TransitionOverlay() {
               {/* 프로그레스바 */}
               <div className="w-64 h-1 bg-white/20 rounded-full overflow-hidden">
                 <motion.div
-                  initial={{ width: '0%' }}
-                  animate={{ width: '100%' }}
-                  transition={{ duration: 2, ease: 'easeInOut', delay: 0.5 }}
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 2, ease: "easeInOut", delay: 0.5 }}
                   className="h-full bg-white rounded-full"
                 />
               </div>
@@ -46,5 +51,5 @@ export default function TransitionOverlay() {
         </motion.div>
       )}
     </AnimatePresence>
-  )
+  );
 }

@@ -4,7 +4,7 @@ import PrinterMesh from "./objects/PrinterMesh";
 import DrawingDoorMesh from "./objects/DrawingDoorMesh";
 import GroundMesh from "./objects/GroundMesh";
 import { useLandingStore } from "@/features/landing/landingStore";
-import { useSceneStore } from "@/shared/store";
+import { useSceneStore } from "@/shared/stores";
 import { useLandingCamera } from "./useLandingCamera";
 import { useLandingInteraction } from "./useLandingInteraction";
 import Character from "../_infra/Character";
@@ -86,7 +86,7 @@ export default function LandingScene() {
 
       {/* 이동 가능한 캐릭터 — 프린터(원점)에서 3유닛 앞에 배치, 1/3 크기 */}
       {/* Y=0.7: 내부 모델 오프셋 -0.7 적용 시 발이 바닥(y=0)에 정확히 닿음 */}
-      <Character initialPosition={[0, 0.7, 3]} modelScale={0.17} />
+      <Character initialPosition={[0, 0.8, 3]} modelScale={0.13} />
 
       {/* 네모닉 프린터 메시 */}
       <PrinterMesh onPrint={handlePrint} />

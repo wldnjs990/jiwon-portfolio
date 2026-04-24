@@ -2,27 +2,27 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import { useLandingStore } from "./landingStore";
-import { useSceneStore } from "@/shared/store";
+import { useSceneStore } from "@/shared/stores";
 
 export default function ExploreToggle() {
   const { isExploreMode, setExploreMode } = useLandingStore();
   const currentScene = useSceneStore((s) => s.currentScene);
-  const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep)
-  const isPrinterFocused = useLandingStore((s) => s.isPrinterFocused)
-  const setIsPrinterFocused = useLandingStore((s) => s.setIsPrinterFocused)
+  const setOnboardingStep = useLandingStore((s) => s.setOnboardingStep);
+  const isPrinterFocused = useLandingStore((s) => s.isPrinterFocused);
+  const setIsPrinterFocused = useLandingStore((s) => s.setIsPrinterFocused);
 
-  if (currentScene !== "landing") return null
+  if (currentScene !== "landing") return null;
   // 프린터 포커스 모드에서만 표시
-  if (!isPrinterFocused) return null
+  if (!isPrinterFocused) return null;
 
   const handleEnterWorld = () => {
-    setOnboardingStep('welcome')
-  }
+    setOnboardingStep("welcome");
+  };
 
   const handleBack = () => {
-    setIsPrinterFocused(false)
-    setExploreMode(false)
-  }
+    setIsPrinterFocused(false);
+    setExploreMode(false);
+  };
 
   return (
     <>

@@ -1,7 +1,13 @@
-import { useState } from 'react'
-import { useGLTF, useAnimations } from '@react-three/drei'
-import { LoopOnce } from 'three'
-import type { AnimationAction, Object3D } from 'three'
+import { useState } from "react";
+import { useGLTF, useAnimations } from "@react-three/drei";
+import { LoopOnce } from "three";
+import type { AnimationAction, Object3D } from "three";
+import {
+  openPrinterLidAudio,
+  closePrinterLidAudio,
+  printLabelAudio,
+} from "@/shared/utils/sounds";
+import { HAPTIC } from "@/shared/consts/haptics";
 
 /**
  * GLB 기반 프린터 인터랙션 훅.
@@ -14,52 +20,68 @@ import type { AnimationAction, Object3D } from 'three'
  */
 
 // NLA 트랙 → 실제 GLB clip 이름 그룹 매핑
-const PRINT_ACTION_CLIPS = ['print_button_click', 'label_up'] as const
-const OPEN_HEAD_CLIPS = ['toggle_side_button', 'print_head_up'] as const
+const PRINT_ACTION_CLIPS = ["print_button_click", "label_up"] as const;
+const OPEN_HEAD_CLIPS = ["toggle_side_button", "print_head_up"] as const;
 
 /** 클릭된 mesh에서 조상을 타고 올라가며 해당 버튼 그룹명을 찾는다 */
-export function findButtonAncestor(object: Object3D, buttonName: string): boolean {
-  let current: Object3D | null = object
+export function findButtonAncestor(
+  object: Object3D,
+  buttonName: string,
+): boolean {
+  let current: Object3D | null = object;
   while (current) {
-    if (current.name === buttonName) return true
-    current = current.parent
+    if (current.name === buttonName) return true;
+    current = current.parent;
   }
-  return false
+  return false;
 }
 
 function playOnce(action: AnimationAction, reverse = false) {
-  action.reset().setLoop(LoopOnce, 1)
-  action.clampWhenFinished = true
+  action.reset().setLoop(LoopOnce, 1);
+  action.clampWhenFinished = true;
   if (reverse) {
-    action.timeScale = -1
-    action.time = action.getClip().duration
+    action.timeScale = -1;
+    action.time = action.getClip().duration;
   } else {
-    action.timeScale = 1
+    action.timeScale = 1;
   }
-  action.play()
+  action.play();
 }
 
 export function usePrinterInteraction() {
-  const { scene, animations } = useGLTF('/nemonic-custom.glb')
-  const { actions } = useAnimations(animations, scene)
-  const [lidOpen, setLidOpen] = useState(false)
+  const { scene, animations } = useGLTF("/nemonic-custom.glb");
+  const { actions } = useAnimations(animations, scene);
+  const [lidOpen, setLidOpen] = useState(false);
 
   const handlePrintButtonClick = () => {
     PRINT_ACTION_CLIPS.forEach((clipName) => {
-      const action = actions[clipName]
-      if (action) playOnce(action)
-    })
-  }
+      const action = actions[clipName];
+      if (action) playOnce(action);
+      if (clipName === "label_up") {
+        printLabelAudio.play();
+        navigator.vibrate(HAPTIC.PRINT_START);
+      }
+    });
+  };
 
   const handleOpenButtonClick = () => {
     OPEN_HEAD_CLIPS.forEach((clipName) => {
-      const action = actions[clipName]
-      if (action) playOnce(action, lidOpen)
-    })
-    setLidOpen((prev) => !prev)
-  }
+      const action = actions[clipName];
+      if (action) {
+        if (lidOpen) {
+          closePrinterLidAudio.play();
+          navigator.vibrate(HAPTIC.LID_CLOSE);
+        } else {
+          openPrinterLidAudio.play();
+          navigator.vibrate(HAPTIC.LID_OPEN);
+        }
+        playOnce(action, lidOpen);
+      }
+    });
+    setLidOpen((prev) => !prev);
+  };
 
-  return { scene, actions, handlePrintButtonClick, handleOpenButtonClick }
+  return { scene, actions, handlePrintButtonClick, handleOpenButtonClick };
 }
 
-useGLTF.preload('/nemonic-custom.glb')
+useGLTF.preload("/nemonic-custom.glb");
