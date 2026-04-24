@@ -1,11 +1,27 @@
 import { RigidBody, CuboidCollider } from '@react-three/rapier'
+import { clickTargetRef } from '@/shared/stores'
 
 export default function GroundMesh() {
   return (
     <>
       {/* 바닥 — 8×6, center z=-3 */}
       <RigidBody type="fixed" colliders={false}>
-        <mesh position={[0, -0.05, -3]} receiveShadow>
+        <mesh
+          position={[0, -0.05, -3]}
+          receiveShadow
+          onPointerDown={(event) => {
+            clickTargetRef.x = event.point.x;
+            clickTargetRef.z = event.point.z;
+            clickTargetRef.active = true;
+          }}
+          onPointerMove={(event) => {
+            if (!clickTargetRef.active) return;
+            clickTargetRef.x = event.point.x;
+            clickTargetRef.z = event.point.z;
+          }}
+          onPointerUp={() => { clickTargetRef.active = false; }}
+          onPointerCancel={() => { clickTargetRef.active = false; }}
+        >
           <boxGeometry args={[8, 0.1, 6]} />
           <meshStandardMaterial color="#c8a96e" roughness={0.8} metalness={0.0} />
         </mesh>

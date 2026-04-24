@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import type { Group } from "three";
 import type { RapierRigidBody } from "@react-three/rapier";
-import { useControlStore, characterPosRef } from "@/shared/stores";
+import {
+  useControlStore,
+  characterPosRef,
+  clickTargetRef,
+} from "@/shared/stores";
 
 const SPEED = 4;
 const ROTATE_SPEED = 0.15;
@@ -62,8 +66,22 @@ export function useCharacterMovement(
 
     // 조이스틱 입력 (비반응적 — useFrame 안에서 re-render 없이 읽기)
     const { joystickInput } = useControlStore.getState();
-    const dx = kdx !== 0 ? kdx : joystickInput.dx;
-    const dz = kdz !== 0 ? kdz : joystickInput.dz;
+    let dx = kdx !== 0 ? kdx : joystickInput.dx;
+    let dz = kdz !== 0 ? kdz : joystickInput.dz;
+
+    // 클릭/터치 이동 — 키보드·조이스틱 미입력 시 적용 (우선순위 최하위)
+    if (dx === 0 && dz === 0 && clickTargetRef.active) {
+      const pos = rb.current.translation();
+      const toX = clickTargetRef.x - pos.x;
+      const toZ = clickTargetRef.z - pos.z;
+      const dist = Math.sqrt(toX * toX + toZ * toZ);
+      if (dist < 0.1) {
+        clickTargetRef.active = false;
+      } else {
+        dx = toX / dist;
+        dz = toZ / dist;
+      }
+    }
 
     const magnitude = Math.sqrt(dx * dx + dz * dz);
     const isMoving = magnitude > 0.01;

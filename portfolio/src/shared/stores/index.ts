@@ -1,3 +1,3 @@
 export { useSceneStore } from './sceneStore'
 export type { SceneId } from './sceneStore'
-export { useControlStore, characterPosRef } from './controlStore'
+export { useControlStore, characterPosRef, clickTargetRef } from './controlStore'
