@@ -54,29 +54,28 @@ export function usePrinterInteraction() {
   const [lidOpen, setLidOpen] = useState(false);
 
   const handlePrintButtonClick = () => {
+    printLabelAudio.play();
+    navigator.vibrate?.(HAPTIC.BUTTON_CLICK);
+    setTimeout(() => {
+      navigator.vibrate?.(HAPTIC.PRINT_START);
+    }, 300);
     PRINT_ACTION_CLIPS.forEach((clipName) => {
       const action = actions[clipName];
       if (action) playOnce(action);
-      if (clipName === "label_up") {
-        printLabelAudio.play();
-        navigator.vibrate(HAPTIC.PRINT_START);
-      }
     });
   };
 
   const handleOpenButtonClick = () => {
+    if (lidOpen) {
+      closePrinterLidAudio.play();
+      navigator.vibrate?.(HAPTIC.LID_CLOSE);
+    } else {
+      openPrinterLidAudio.play();
+      navigator.vibrate?.(HAPTIC.LID_OPEN);
+    }
     OPEN_HEAD_CLIPS.forEach((clipName) => {
       const action = actions[clipName];
-      if (action) {
-        if (lidOpen) {
-          closePrinterLidAudio.play();
-          navigator.vibrate(HAPTIC.LID_CLOSE);
-        } else {
-          openPrinterLidAudio.play();
-          navigator.vibrate(HAPTIC.LID_OPEN);
-        }
-        playOnce(action, lidOpen);
-      }
+      if (action) playOnce(action, lidOpen);
     });
     setLidOpen((prev) => !prev);
   };
